@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python
+backend/.venv/
+backend/.pytest_cache/
+backend/.coverage
+
+# Env
+backend/.env
+
+# Xcode
+ios/BetweenUs.xcodeproj/project.xcworkspace/xcuserdata/
+ios/BetweenUs.xcodeproj/xcuserdata/
+ios/build/
+DerivedData/
+
+# IDE
+.vscode/
+.idea/
