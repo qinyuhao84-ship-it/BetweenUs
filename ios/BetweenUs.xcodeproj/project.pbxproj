@@ -17,6 +17,7 @@
 		7C868C07E75FE05CD2F229F3 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4B98340740C2F6B875040F /* HistoryView.swift */; };
 		94E0925184EC3A3B602D5C2A /* UsageUnitPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FDD72F1464696368D258ED /* UsageUnitPolicyTests.swift */; };
 		AD1EACF3BF946580F573A9C9 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B24ABE5EC99C67111BECAAD /* SessionModels.swift */; };
+		BE8C653AA0C88BFC8530BA87 /* BetweenUsTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C0345641A317F955561A33 /* BetweenUsTheme.swift */; };
 		BFE2AAC04F461BE8F96C30E9 /* BetweenUsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2A7A2D59154159E2FC1F34 /* BetweenUsApp.swift */; };
 		D2EDE04079DB325037CC8A64 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76797B60CFB2681D14D0672 /* APIClient.swift */; };
 		DD93F327063F090E5201BDDF /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7FD8AE3F3FC2ABCDBACBA5 /* RootTabView.swift */; };
@@ -44,6 +45,7 @@
 		5F5FB376E43A418473899761 /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDetailView.swift; sourceTree = "<group>"; };
 		61FDD72F1464696368D258ED /* UsageUnitPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageUnitPolicyTests.swift; sourceTree = "<group>"; };
 		73E41BF1F0A479498219A64C /* RecorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderService.swift; sourceTree = "<group>"; };
+		84C0345641A317F955561A33 /* BetweenUsTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetweenUsTheme.swift; sourceTree = "<group>"; };
 		8B24ABE5EC99C67111BECAAD /* SessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModels.swift; sourceTree = "<group>"; };
 		9A1292902222F510DE7B3852 /* RecordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordViewModel.swift; sourceTree = "<group>"; };
 		B76797B60CFB2681D14D0672 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			children = (
 				5D06C1851FF8E6B142D727DF /* AppState.swift */,
 				BB2A7A2D59154159E2FC1F34 /* BetweenUsApp.swift */,
+				84C0345641A317F955561A33 /* BetweenUsTheme.swift */,
 				CF7FD8AE3F3FC2ABCDBACBA5 /* RootTabView.swift */,
 			);
 			path = App;
@@ -258,6 +261,7 @@
 				3C69F2A5FE41F32269FA0390 /* AppState.swift in Sources */,
 				470DB0E6E0B52453F54A16A9 /* AuthModels.swift in Sources */,
 				BFE2AAC04F461BE8F96C30E9 /* BetweenUsApp.swift in Sources */,
+				BE8C653AA0C88BFC8530BA87 /* BetweenUsTheme.swift in Sources */,
 				7C868C07E75FE05CD2F229F3 /* HistoryView.swift in Sources */,
 				0C04F3C6EBE2CA3DBCAAEEA8 /* RecordView.swift in Sources */,
 				DEC4436175E7C24FF3AFCF03 /* RecordViewModel.swift in Sources */,

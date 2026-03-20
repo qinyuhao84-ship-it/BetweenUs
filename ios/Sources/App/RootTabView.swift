@@ -27,5 +27,8 @@ struct RootTabView: View {
                 Label("设置", systemImage: "gearshape")
             }
         }
+        .tint(BetweenUsTheme.brandBlue)
+        .toolbarBackground(BetweenUsTheme.cardStrong, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 }

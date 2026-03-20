@@ -14,10 +14,19 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = ""
     llm_model: str = ""
+    asr_provider: str = "openai_compatible"
     asr_api_key: str = ""
     asr_base_url: str = "https://api.openai.com/v1"
     asr_model: str = "whisper-1"
     asr_language: str = "zh"
+    asr_volc_app_id: str = ""
+    asr_volc_access_token: str = ""
+    asr_volc_resource_id: str = "volc.seedasr.auc"
+    asr_volc_submit_url: str = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit"
+    asr_volc_query_url: str = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/query"
+    asr_volc_upload_provider: str = "none"
+    asr_poll_seconds: float = 2.0
+    asr_poll_max_attempts: int = 120
     ai_provider_mode: str = "auto"
     provider_timeout_seconds: int = 60
     max_audio_file_bytes: int = 25 * 1024 * 1024
@@ -45,6 +54,16 @@ class Settings(BaseSettings):
 
         if self.ai_provider_mode not in {"real", "mock", "auto"}:
             raise ValueError("AI_PROVIDER_MODE 只支持 real / mock / auto")
+        if self.asr_provider not in {"openai_compatible", "volc_recording_bigmodel"}:
+            raise ValueError("ASR_PROVIDER 只支持 openai_compatible / volc_recording_bigmodel")
+        if self.asr_volc_upload_provider not in {"none", "catbox"}:
+            raise ValueError("ASR_VOLC_UPLOAD_PROVIDER 只支持 none / catbox")
+        if (
+            self.ai_provider_mode == "real"
+            and self.asr_provider == "volc_recording_bigmodel"
+            and (not self.asr_volc_app_id or not self.asr_volc_access_token)
+        ):
+            raise ValueError("使用火山录音识别时必须配置 ASR_VOLC_APP_ID 与 ASR_VOLC_ACCESS_TOKEN")
 
         if self.env not in {"dev", "test"} and self.jwt_secret_key == "change-me-in-prod":
             raise ValueError("生产环境必须配置 JWT_SECRET_KEY")
