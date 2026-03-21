@@ -6,8 +6,7 @@ struct RootTabView: View {
 
     var body: some View {
         Group {
-            if let sessionID = ProcessInfo.processInfo.environment["BETWEENUS_OPEN_REPORT_ID"],
-               !sessionID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if let sessionID = debugForcedReportSessionID
             {
                 NavigationStack {
                     ReportDebugLoaderView(sessionID: sessionID)
@@ -42,21 +41,37 @@ struct RootTabView: View {
                     .tag(TabID.settings)
                 }
                 .onAppear {
-                    let raw = ProcessInfo.processInfo.environment["BETWEENUS_OPEN_TAB"]?.lowercased() ?? ""
-                    switch raw {
-                    case "history":
-                        selectedTab = .history
-                    case "settings":
-                        selectedTab = .settings
-                    default:
-                        selectedTab = .record
-                    }
+                    applyDebugInitialTabIfNeeded()
                 }
             }
         }
         .tint(BetweenUsTheme.brandBlue)
         .toolbarBackground(BetweenUsTheme.cardStrong, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+    }
+
+    private var debugForcedReportSessionID: String? {
+#if DEBUG
+        let raw = ProcessInfo.processInfo.environment["BETWEENUS_OPEN_REPORT_ID"] ?? ""
+        let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+#else
+        return nil
+#endif
+    }
+
+    private func applyDebugInitialTabIfNeeded() {
+#if DEBUG
+        let raw = ProcessInfo.processInfo.environment["BETWEENUS_OPEN_TAB"]?.lowercased() ?? ""
+        switch raw {
+        case "history":
+            selectedTab = .history
+        case "settings":
+            selectedTab = .settings
+        default:
+            selectedTab = .record
+        }
+#endif
     }
 }
 

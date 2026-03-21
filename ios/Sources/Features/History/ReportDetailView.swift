@@ -28,6 +28,7 @@ struct ReportDetailView: View {
                 .scrollIndicators(.visible)
                 .scrollBounceBehavior(.basedOnSize)
                 .onAppear {
+#if DEBUG
                     if ProcessInfo.processInfo.environment["BETWEENUS_AUTOSCROLL_REPORT"] == "1" {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             withAnimation(.easeInOut(duration: 0.45)) {
@@ -35,6 +36,7 @@ struct ReportDetailView: View {
                             }
                         }
                     }
+#endif
                 }
             }
         }
