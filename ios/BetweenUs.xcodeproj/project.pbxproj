@@ -8,10 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		0C04F3C6EBE2CA3DBCAAEEA8 /* RecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2805C093D0EA7E54A252BD25 /* RecordView.swift */; };
+		17153E7122388A692B6C6361 /* SystemModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F7D458B7AB288D7A3D257F /* SystemModels.swift */; };
+		32A0BA5FFD7C6C633E25530C /* APIClientURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6263413753787227B4CDC47A /* APIClientURLTests.swift */; };
 		342E147F265D671E7FAF5F9C /* ReportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBBB04685F961E0932093328 /* ReportModels.swift */; };
 		3C69F2A5FE41F32269FA0390 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D06C1851FF8E6B142D727DF /* AppState.swift */; };
 		3DADDF5BF0746EA2BA799BCE /* UsageUnitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049B177E8C7F1E776D09DDA4 /* UsageUnitPolicy.swift */; };
 		470DB0E6E0B52453F54A16A9 /* AuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BB5D2BA05518120E45C4BA /* AuthModels.swift */; };
+		667E2A45BF233255B65BEC1B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3694436B8965B3316BCF52 /* LoginView.swift */; };
 		7052626F3D424383F60114F9 /* RecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E41BF1F0A479498219A64C /* RecorderService.swift */; };
 		72BB407BE86B15EABA3FDAEB /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5FB376E43A418473899761 /* ReportDetailView.swift */; };
 		7C868C07E75FE05CD2F229F3 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4B98340740C2F6B875040F /* HistoryView.swift */; };
@@ -40,14 +43,17 @@
 		2805C093D0EA7E54A252BD25 /* RecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordView.swift; sourceTree = "<group>"; };
 		2B4B98340740C2F6B875040F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		394020AC2FDC7EF782A21239 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3D3694436B8965B3316BCF52 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		57311C0FAFBF071979312AF2 /* BetweenUs.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BetweenUs.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D06C1851FF8E6B142D727DF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		5F5FB376E43A418473899761 /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDetailView.swift; sourceTree = "<group>"; };
 		61FDD72F1464696368D258ED /* UsageUnitPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageUnitPolicyTests.swift; sourceTree = "<group>"; };
+		6263413753787227B4CDC47A /* APIClientURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientURLTests.swift; sourceTree = "<group>"; };
 		73E41BF1F0A479498219A64C /* RecorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderService.swift; sourceTree = "<group>"; };
 		84C0345641A317F955561A33 /* BetweenUsTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetweenUsTheme.swift; sourceTree = "<group>"; };
 		8B24ABE5EC99C67111BECAAD /* SessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModels.swift; sourceTree = "<group>"; };
 		9A1292902222F510DE7B3852 /* RecordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordViewModel.swift; sourceTree = "<group>"; };
+		B3F7D458B7AB288D7A3D257F /* SystemModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemModels.swift; sourceTree = "<group>"; };
 		B76797B60CFB2681D14D0672 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		BB2A7A2D59154159E2FC1F34 /* BetweenUsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetweenUsApp.swift; sourceTree = "<group>"; };
 		CF7FD8AE3F3FC2ABCDBACBA5 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
@@ -78,6 +84,7 @@
 		2CDDAE8C878F2EE2BF613E02 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				6263413753787227B4CDC47A /* APIClientURLTests.swift */,
 				61FDD72F1464696368D258ED /* UsageUnitPolicyTests.swift */,
 			);
 			path = Tests;
@@ -96,6 +103,7 @@
 		36CBB576F34058C927C13B42 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				BCB801F4699CAF4983A42972 /* Auth */,
 				1A2B534DAC5E1176A8AA6C19 /* History */,
 				2DBD6F401888D66BEF7E7C22 /* Record */,
 				FC9847633166ED8DC5252BDB /* Settings */,
@@ -138,6 +146,7 @@
 				D3BB5D2BA05518120E45C4BA /* AuthModels.swift */,
 				DBBB04685F961E0932093328 /* ReportModels.swift */,
 				8B24ABE5EC99C67111BECAAD /* SessionModels.swift */,
+				B3F7D458B7AB288D7A3D257F /* SystemModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -157,6 +166,14 @@
 				B76797B60CFB2681D14D0672 /* APIClient.swift */,
 			);
 			path = Networking;
+			sourceTree = "<group>";
+		};
+		BCB801F4699CAF4983A42972 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				3D3694436B8965B3316BCF52 /* LoginView.swift */,
+			);
+			path = Auth;
 			sourceTree = "<group>";
 		};
 		C80EBE6913F4FF60E488A241 /* Shared */ = {
@@ -263,6 +280,7 @@
 				BFE2AAC04F461BE8F96C30E9 /* BetweenUsApp.swift in Sources */,
 				BE8C653AA0C88BFC8530BA87 /* BetweenUsTheme.swift in Sources */,
 				7C868C07E75FE05CD2F229F3 /* HistoryView.swift in Sources */,
+				667E2A45BF233255B65BEC1B /* LoginView.swift in Sources */,
 				0C04F3C6EBE2CA3DBCAAEEA8 /* RecordView.swift in Sources */,
 				DEC4436175E7C24FF3AFCF03 /* RecordViewModel.swift in Sources */,
 				7052626F3D424383F60114F9 /* RecorderService.swift in Sources */,
@@ -271,6 +289,7 @@
 				DD93F327063F090E5201BDDF /* RootTabView.swift in Sources */,
 				AD1EACF3BF946580F573A9C9 /* SessionModels.swift in Sources */,
 				FBF63D26567C75CB9256E29F /* SettingsView.swift in Sources */,
+				17153E7122388A692B6C6361 /* SystemModels.swift in Sources */,
 				3DADDF5BF0746EA2BA799BCE /* UsageUnitPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -279,6 +298,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				32A0BA5FFD7C6C633E25530C /* APIClientURLTests.swift in Sources */,
 				94E0925184EC3A3B602D5C2A /* UsageUnitPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

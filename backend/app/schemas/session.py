@@ -30,3 +30,13 @@ class UploadSessionAudioResponse(BaseModel):
     session_id: str
     uploaded: bool
     bytes_received: int
+
+
+class SessionDetailResponse(BaseModel):
+    session_id: str
+    title: str
+    status: str
+    created_at: datetime
+    duration_minutes: int
+    failure_reason: str
+    transcript_excerpt: str

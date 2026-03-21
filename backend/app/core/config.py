@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
     allow_insecure_header_auth: bool = False
+    sms_provider: str = "mock"
+    sms_http_endpoint: str = ""
+    sms_http_auth_token: str = ""
+    sms_template: str = "【BetweenUs】验证码 {code}，5 分钟内有效。"
+    sms_code_expires_seconds: int = 300
+    sms_send_interval_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -56,8 +62,8 @@ class Settings(BaseSettings):
             raise ValueError("AI_PROVIDER_MODE 只支持 real / mock / auto")
         if self.asr_provider not in {"openai_compatible", "volc_recording_bigmodel"}:
             raise ValueError("ASR_PROVIDER 只支持 openai_compatible / volc_recording_bigmodel")
-        if self.asr_volc_upload_provider not in {"none", "catbox"}:
-            raise ValueError("ASR_VOLC_UPLOAD_PROVIDER 只支持 none / catbox")
+        if self.asr_volc_upload_provider not in {"none", "catbox", "tmpfiles"}:
+            raise ValueError("ASR_VOLC_UPLOAD_PROVIDER 只支持 none / catbox / tmpfiles")
         if (
             self.ai_provider_mode == "real"
             and self.asr_provider == "volc_recording_bigmodel"
@@ -69,6 +75,16 @@ class Settings(BaseSettings):
             raise ValueError("生产环境必须配置 JWT_SECRET_KEY")
         if self.env not in {"dev", "test"} and not self.database_url.startswith("postgresql"):
             raise ValueError("生产环境必须使用 PostgreSQL 数据库地址")
+        if self.sms_provider not in {"mock", "http"}:
+            raise ValueError("SMS_PROVIDER 只支持 mock / http")
+        if self.sms_provider == "http" and not self.sms_http_endpoint:
+            raise ValueError("SMS_PROVIDER=http 时必须配置 SMS_HTTP_ENDPOINT")
+        if self.sms_code_expires_seconds < 60:
+            raise ValueError("SMS_CODE_EXPIRES_SECONDS 不能小于 60")
+        if self.sms_send_interval_seconds < 30:
+            raise ValueError("SMS_SEND_INTERVAL_SECONDS 不能小于 30")
+        if self.env not in {"dev", "test"} and self.sms_provider == "mock":
+            raise ValueError("生产环境不允许 SMS_PROVIDER=mock，请改为 http 并接入真实短信网关")
         return self
 
 

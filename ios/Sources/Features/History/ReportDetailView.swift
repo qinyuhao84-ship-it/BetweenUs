@@ -10,6 +10,9 @@ struct ReportDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     section(title: "本次复盘摘要", icon: "heart.text.square", lines: [report.summary])
+                    if !report.transcriptExcerpt.isEmpty {
+                        section(title: "转写片段（用于核对）", icon: "waveform", lines: [report.transcriptExcerpt])
+                    }
                     section(title: "潜在诉求", icon: "sparkles", lines: report.potentialNeeds)
                     section(title: "修复建议", icon: "wand.and.stars", lines: report.repairSuggestions)
                     section(title: "行动任务", icon: "checklist", lines: report.actionTasks.map { "[ ] \($0.content)" })

@@ -21,6 +21,7 @@ class ReportDraft(BaseModel):
 class ReportResponse(BaseModel):
     session_id: str
     summary: str
+    transcript_excerpt: str = ""
     potential_needs: list[str]
     repair_suggestions: list[str]
     action_tasks: list[ActionTask]

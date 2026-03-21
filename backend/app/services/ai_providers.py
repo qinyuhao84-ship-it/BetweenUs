@@ -27,6 +27,9 @@ class ASRService:
             return self._transcribe_with_volc(audio_path)
         return self._transcribe_with_openai(audio_path)
 
+    def is_mock_enabled(self) -> bool:
+        return self._use_mock()
+
     def _transcribe_with_openai(self, audio_path: str) -> str:
         if not self.settings.asr_api_key:
             raise ProviderError("ASR 服务未配置，请先设置 ASR_API_KEY")
@@ -148,9 +151,11 @@ class ASRService:
             raise ProviderError("音频文件不存在，无法转写")
         if self.settings.asr_volc_upload_provider == "catbox":
             return self._upload_to_catbox(target)
+        if self.settings.asr_volc_upload_provider == "tmpfiles":
+            return self._upload_to_tmpfiles(target)
         raise ProviderError(
             "豆包录音识别模型要求公网可访问的音频 URL。"
-            "请先把音频放到可外网访问的对象存储，或在开发环境将 ASR_VOLC_UPLOAD_PROVIDER 设置为 catbox。"
+            "请先把音频放到可外网访问的对象存储，或在开发环境将 ASR_VOLC_UPLOAD_PROVIDER 设置为 catbox / tmpfiles。"
         )
 
     def _upload_to_catbox(self, target: Path) -> str:
@@ -191,6 +196,61 @@ class ASRService:
                     last_error = f"上传音频到临时公网地址失败：{detail}"
                 else:
                     last_error = "上传音频到临时公网地址失败，请检查网络"
+
+            if attempt < 2:
+                time.sleep(1)
+
+        raise ProviderError(last_error)
+
+    def _upload_to_tmpfiles(self, target: Path) -> str:
+        last_error = "上传音频到 tmpfiles 失败，请检查网络"
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [
+                        "curl",
+                        "--http1.1",
+                        "-sS",
+                        "-F",
+                        f"file=@{target}",
+                        "https://tmpfiles.org/api/v1/upload",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.settings.provider_timeout_seconds,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                last_error = str(exc).strip() or "上传音频到 tmpfiles 失败，请稍后重试"
+                if attempt < 2:
+                    time.sleep(1)
+                    continue
+                raise ProviderError("上传音频到 tmpfiles 失败，请稍后重试") from exc
+
+            if result.returncode == 0:
+                try:
+                    payload = json.loads((result.stdout or "").strip() or "{}")
+                except json.JSONDecodeError:
+                    payload = {}
+                url = ""
+                if isinstance(payload, dict):
+                    data = payload.get("data")
+                    if isinstance(data, dict):
+                        raw_url = str(data.get("url", "")).strip()
+                        if raw_url.startswith("http://") or raw_url.startswith("https://"):
+                            if "/dl/" in raw_url:
+                                url = raw_url
+                            else:
+                                url = raw_url.replace("://tmpfiles.org/", "://tmpfiles.org/dl/")
+                if url.startswith("http://") or url.startswith("https://"):
+                    return url
+                last_error = "tmpfiles 返回了无效链接，请改用对象存储 URL"
+            else:
+                detail = (result.stderr or "").strip()
+                if detail:
+                    last_error = f"上传音频到 tmpfiles 失败：{detail}"
+                else:
+                    last_error = "上传音频到 tmpfiles 失败，请检查网络"
 
             if attempt < 2:
                 time.sleep(1)
@@ -330,8 +390,15 @@ class LLMService:
             raise ProviderError("LLM 服务未配置，请先设置 LLM_API_KEY 或 DEEPSEEK_API_KEY")
 
         system_prompt = (
-            "你是情侣冲突复盘助手。"
-            "请基于转写文本输出严格 JSON，不要输出 markdown。"
+            "你是一个“冲突修复教练”，不是裁判。"
+            "你的目标是帮助双方看见彼此没有说出口的诉求，而不是判断谁对谁错。"
+            "请严格遵循："
+            "1) 不使用“谁错了”“谁赢了”这类表述；"
+            "2) summary 必须指出冲突表层争执和深层需求错位；"
+            "3) potential_needs 至少覆盖双方各 1 条隐含需求；"
+            "4) repair_suggestions 必须是当下能执行的小动作，避免空泛说教；"
+            "5) action_tasks 必须可执行、可验证，包含时间或触发条件。"
+            "输出必须是严格 JSON，不要 markdown，不要额外字段。"
             "JSON 结构必须是："
             '{"summary":"...",'
             '"potential_needs":["..."],'
@@ -339,7 +406,8 @@ class LLMService:
             '"action_tasks":[{"content":"..."}]}'
         )
         user_prompt = (
-            "请给出中文复盘，要求务实可执行。\n"
+            "请基于以下转写内容生成中文复盘报告。"
+            "重点提炼：双方情绪触发点、隐含诉求、可立刻执行的修复动作。\n"
             f"转写文本：\n{transcript}\n"
         )
         payload = {
@@ -367,6 +435,9 @@ class LLMService:
 
         content = self._extract_content(response.json())
         return self._parse_report(content)
+
+    def is_mock_enabled(self) -> bool:
+        return self._use_mock()
 
     def _use_mock(self) -> bool:
         mode = self.settings.ai_provider_mode

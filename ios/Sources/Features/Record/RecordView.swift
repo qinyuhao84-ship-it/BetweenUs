@@ -3,6 +3,7 @@ import SwiftUI
 struct RecordView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = RecordViewModel()
+    @State private var didRunAutomation = false
 
     var body: some View {
         ZStack {
@@ -10,6 +11,13 @@ struct RecordView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if !appState.isLoggedIn {
+                        Text("请先在登录页完成手机号验证，再开始录音。")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.red)
+                            .betweenUsCardStyle()
+                    }
+
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
@@ -59,6 +67,7 @@ struct RecordView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: viewModel.isRecording))
+                    .disabled(!appState.isLoggedIn)
 
                     if let error = viewModel.errorMessage {
                         Text(error)
@@ -67,6 +76,13 @@ struct RecordView: View {
                             .textSelection(.enabled)
                             .betweenUsCardStyle()
                     }
+
+                    Text(appState.runtimeStatusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(
+                            appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
+                        )
+                        .betweenUsCardStyle()
 
                     if let report = viewModel.latestReport {
                         NavigationLink {
@@ -87,6 +103,11 @@ struct RecordView: View {
                 }
                 .padding(20)
             }
+        }
+        .task {
+            guard !didRunAutomation else { return }
+            didRunAutomation = true
+            await viewModel.runAutomatedFlowIfNeeded(appState: appState)
         }
     }
 }

@@ -17,6 +17,21 @@ enum APIClientError: Error, LocalizedError {
 struct APIClient {
     let baseURL: URL
 
+    // Keep URL composition centralized so "/v1/..." and "v1/..." both resolve correctly.
+    func endpointURL(path: String) throws -> URL {
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedPath = trimmedPath.drop(while: { $0 == "/" })
+        guard !normalizedPath.isEmpty else {
+            throw APIClientError.serverError("接口地址无效")
+        }
+
+        let base = baseURL.absoluteString.hasSuffix("/") ? baseURL : baseURL.appendingPathComponent("")
+        guard let resolved = URL(string: String(normalizedPath), relativeTo: base)?.absoluteURL else {
+            throw APIClientError.serverError("接口地址拼接失败")
+        }
+        return resolved
+    }
+
     func appleLogin(identityToken: String) async throws -> AuthTokenResponse {
         let body = AppleLoginRequest(apple_identity_token: identityToken)
         return try await request(
@@ -26,6 +41,53 @@ struct APIClient {
             accessToken: nil,
             body: body,
             response: AuthTokenResponse.self
+        )
+    }
+
+    func sendSMSCode(phone: String) async throws -> SendSMSCodeResponse {
+        let body = SendSMSCodeRequest(phone: phone)
+        return try await request(
+            path: "/v1/auth/sms/send",
+            method: "POST",
+            userID: "",
+            accessToken: nil,
+            body: body,
+            response: SendSMSCodeResponse.self
+        )
+    }
+
+    func loginWithSMS(phone: String, code: String) async throws -> AuthTokenResponse {
+        let body = PhoneLoginRequest(phone: phone, code: code)
+        return try await request(
+            path: "/v1/auth/sms/login",
+            method: "POST",
+            userID: "",
+            accessToken: nil,
+            body: body,
+            response: AuthTokenResponse.self
+        )
+    }
+
+    func fetchCurrentUser(accessToken: String) async throws -> UserProfileResponse {
+        try await request(
+            path: "/v1/auth/me",
+            method: "GET",
+            userID: "",
+            accessToken: accessToken,
+            body: Optional<Data>.none,
+            response: UserProfileResponse.self
+        )
+    }
+
+    func updateCurrentUserNickname(accessToken: String, nickname: String) async throws -> UserProfileResponse {
+        let body = UpdateProfileRequest(nickname: nickname)
+        return try await request(
+            path: "/v1/auth/me",
+            method: "PATCH",
+            userID: "",
+            accessToken: accessToken,
+            body: body,
+            response: UserProfileResponse.self
         )
     }
 
@@ -65,7 +127,7 @@ struct APIClient {
         accessToken: String?
     ) async throws -> SessionAudioUploadResponse {
         let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: baseURL.appendingPathComponent("/v1/sessions/\(sessionID)/audio"))
+        var request = URLRequest(url: try endpointURL(path: "/v1/sessions/\(sessionID)/audio"))
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         applyAuthHeaders(to: &request, userID: userID, accessToken: accessToken)
@@ -118,6 +180,17 @@ struct APIClient {
         )
     }
 
+    func fetchSessionDetail(sessionID: String, userID: String, accessToken: String?) async throws -> SessionDetailResponse {
+        try await request(
+            path: "/v1/sessions/\(sessionID)",
+            method: "GET",
+            userID: userID,
+            accessToken: accessToken,
+            body: Optional<Data>.none,
+            response: SessionDetailResponse.self
+        )
+    }
+
     func listSessions(userID: String, accessToken: String?) async throws -> [SessionListItemResponse] {
         try await request(
             path: "/v1/sessions",
@@ -129,6 +202,17 @@ struct APIClient {
         )
     }
 
+    func fetchRuntimeStatus() async throws -> RuntimeStatusResponse {
+        try await request(
+            path: "/v1/system/runtime-status",
+            method: "GET",
+            userID: "",
+            accessToken: nil,
+            body: Optional<Data>.none,
+            response: RuntimeStatusResponse.self
+        )
+    }
+
     private func request<T: Decodable, B: Encodable>(
         path: String,
         method: String,
@@ -137,7 +221,7 @@ struct APIClient {
         body: B,
         response: T.Type
     ) async throws -> T {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        var request = URLRequest(url: try endpointURL(path: path))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         applyAuthHeaders(to: &request, userID: userID, accessToken: accessToken)

@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
@@ -8,14 +9,23 @@ from app.schemas.session import (
     CreateSessionRequest,
     FinishSessionRequest,
     FinishSessionResponse,
+    SessionDetailResponse,
     SessionResponse,
     UploadSessionAudioResponse,
 )
 from app.services.container import audio_storage_service, billing_service, progress_service, session_service
+from app.services.pipeline import ProcessingPipeline
 from app.workers.tasks import process_session_task
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
+
+
+def _run_pipeline_in_background(session_id: str) -> None:
+    try:
+        ProcessingPipeline.run_sync(session_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("background fallback pipeline failed for session %s", session_id)
 
 
 @router.post("", response_model=SessionResponse)
@@ -53,18 +63,29 @@ def finish_session(
     session_service.finish(session_id=session_id, duration_minutes=payload.duration_minutes)
     progress_service.start(session_id)
     try:
-        process_session_task.delay(session_id)
-    except Exception as exc:  # noqa: BLE001
+        process_session_task.apply_async(args=[session_id], ignore_result=True, retry=False)
+    except Exception:  # noqa: BLE001
         logger.exception("failed to enqueue pipeline task for session %s", session_id)
-        session_service.fail(session_id, "任务队列不可用，请稍后重试")
-        progress_service.fail(session_id)
-        raise HTTPException(status_code=503, detail="任务系统暂时不可用，请稍后重试") from exc
+        logger.warning("falling back to inline pipeline execution for session %s", session_id)
+        try:
+            threading.Thread(
+                target=_run_pipeline_in_background,
+                args=(session_id,),
+                name=f"betweenus-pipeline-{session_id[:8]}",
+                daemon=True,
+            ).start()
+        except Exception as fallback_exc:  # noqa: BLE001
+            logger.exception("fallback pipeline execution failed for session %s", session_id)
+            session_service.fail(session_id, "任务系统暂时不可用，请稍后重试")
+            progress_service.fail(session_id)
+            raise HTTPException(status_code=503, detail="任务系统暂时不可用，请稍后重试") from fallback_exc
 
     progress = progress_service.get(session_id)
+    status = "completed" if progress.stage == "completed" else "processing"
 
     return FinishSessionResponse(
         session_id=session_id,
-        status="processing",
+        status=status,
         progress=ProgressSnapshot(stage=progress.stage, percent=progress.percent, updated_at=progress.updated_at),
     )
 
@@ -115,3 +136,28 @@ def get_progress(session_id: str, user_id: str = Depends(get_current_user_id)) -
 
     progress = progress_service.get(session_id)
     return ProgressSnapshot(stage=progress.stage, percent=progress.percent, updated_at=progress.updated_at)
+
+
+@router.get("/{session_id}", response_model=SessionDetailResponse)
+def get_session_detail(session_id: str, user_id: str = Depends(get_current_user_id)) -> SessionDetailResponse:
+    try:
+        record = session_service.get_session(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="会话不存在") from exc
+
+    if record.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该会话")
+
+    transcript_excerpt = record.transcript_text.strip()
+    if len(transcript_excerpt) > 280:
+        transcript_excerpt = transcript_excerpt[:280] + "..."
+
+    return SessionDetailResponse(
+        session_id=record.session_id,
+        title=record.title,
+        status=record.status,
+        created_at=record.created_at,
+        duration_minutes=record.duration_minutes,
+        failure_reason=record.failure_reason,
+        transcript_excerpt=transcript_excerpt,
+    )

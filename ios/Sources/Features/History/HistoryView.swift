@@ -9,6 +9,19 @@ struct HistoryView: View {
 
             ScrollView {
                 VStack(spacing: 12) {
+                    if !appState.isLoggedIn {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("请先登录")
+                                .font(.headline)
+                                .foregroundStyle(BetweenUsTheme.textPrimary)
+                            Text("登录后才能读取你的历史复盘记录。")
+                                .font(.footnote)
+                                .foregroundStyle(BetweenUsTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .betweenUsCardStyle()
+                    }
+
                     if appState.historyLoading && appState.sessions.isEmpty {
                         ProgressView("正在加载历史记录")
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -79,7 +92,7 @@ struct HistoryView: View {
             await appState.refreshHistory()
         }
         .task {
-            if appState.sessions.isEmpty {
+            if appState.sessions.isEmpty && appState.isLoggedIn {
                 await appState.refreshHistory()
             }
         }

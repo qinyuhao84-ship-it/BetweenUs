@@ -129,10 +129,17 @@ class SessionService:
             row = db.get(ReportModel, session_id)
             if row is None:
                 raise KeyError(session_id)
+            session_row = db.get(SessionModel, session_id)
+            transcript_excerpt = ""
+            if session_row is not None and session_row.transcript_text:
+                transcript_excerpt = session_row.transcript_text.strip()
+                if len(transcript_excerpt) > 280:
+                    transcript_excerpt = transcript_excerpt[:280] + "..."
             action_tasks = [ActionTask.model_validate(item) for item in json.loads(row.action_tasks_json)]
             return ReportResponse(
                 session_id=row.session_id,
                 summary=row.summary,
+                transcript_excerpt=transcript_excerpt,
                 potential_needs=list(json.loads(row.potential_needs_json)),
                 repair_suggestions=list(json.loads(row.repair_suggestions_json)),
                 action_tasks=action_tasks,

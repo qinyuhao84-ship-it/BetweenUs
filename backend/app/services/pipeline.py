@@ -33,6 +33,7 @@ class ProcessingPipeline:
             report = ReportResponse(
                 session_id=session_id,
                 summary=report_draft.summary,
+                transcript_excerpt=(transcript[:280] + "...") if len(transcript) > 280 else transcript,
                 potential_needs=report_draft.potential_needs,
                 repair_suggestions=report_draft.repair_suggestions,
                 action_tasks=[
@@ -47,11 +48,10 @@ class ProcessingPipeline:
             session_service.fail(session_id, str(exc))
             progress_service.fail(session_id)
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             logger.exception("session %s pipeline failed", session_id)
             session_service.fail(session_id, "复盘处理失败，请稍后重试")
             progress_service.fail(session_id)
             raise
         finally:
             audio_storage_service.cleanup(audio_path)
-

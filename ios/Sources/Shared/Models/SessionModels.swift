@@ -48,3 +48,13 @@ struct SessionListItemResponse: Codable {
     let status: String
     let created_at: Date
 }
+
+struct SessionDetailResponse: Codable {
+    let session_id: String
+    let title: String
+    let status: String
+    let created_at: Date
+    let duration_minutes: Int
+    let failure_reason: String
+    let transcript_excerpt: String
+}

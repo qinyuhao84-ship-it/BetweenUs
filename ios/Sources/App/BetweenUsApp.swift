@@ -6,8 +6,20 @@ struct BetweenUsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            Group {
+                if appState.isLoggedIn {
+                    RootTabView()
+                } else {
+                    LoginView()
+                }
+            }
                 .environmentObject(appState)
+                .task {
+                    await appState.refreshRuntimeStatus()
+                    if appState.isLoggedIn {
+                        await appState.refreshProfile()
+                    }
+                }
         }
     }
 }

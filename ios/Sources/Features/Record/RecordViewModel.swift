@@ -54,12 +54,13 @@ final class RecordViewModel: ObservableObject {
                 guard let baseURL = URL(string: appState.serverBaseURL) else {
                     throw APIClientError.serverError("服务地址无效")
                 }
+                let userID = appState.currentUserId
+                let accessToken = try appState.requireAccessToken()
 
                 let client = APIClient(baseURL: baseURL)
-                let accessToken = try await ensureAuthorized(appState: appState, client: client)
                 let created = try await client.createSession(
                     title: "自动复盘",
-                    userID: appState.currentUserId,
+                    userID: userID,
                     accessToken: accessToken
                 )
 
@@ -67,7 +68,7 @@ final class RecordViewModel: ObservableObject {
                 _ = try await client.uploadSessionAudio(
                     sessionID: created.session_id,
                     audioURL: audioURL,
-                    userID: appState.currentUserId,
+                    userID: userID,
                     accessToken: accessToken
                 )
 
@@ -75,19 +76,19 @@ final class RecordViewModel: ObservableObject {
                 _ = try await client.finishSession(
                     sessionID: created.session_id,
                     durationMinutes: duration,
-                    userID: appState.currentUserId,
+                    userID: userID,
                     accessToken: accessToken
                 )
 
                 try await waitUntilCompleted(
                     sessionID: created.session_id,
-                    userID: appState.currentUserId,
+                    userID: userID,
                     accessToken: accessToken,
                     client: client
                 )
                 let report = try await client.fetchReport(
                     sessionID: created.session_id,
-                    userID: appState.currentUserId,
+                    userID: userID,
                     accessToken: accessToken
                 )
                 latestReport = report
@@ -102,15 +103,24 @@ final class RecordViewModel: ObservableObject {
         }
     }
 
-    private func ensureAuthorized(appState: AppState, client: APIClient) async throws -> String {
-        if !appState.accessToken.isEmpty {
-            return appState.accessToken
+    func runAutomatedFlowIfNeeded(appState: AppState) async {
+        guard ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_E2E"] == "1" else {
+            return
         }
-        let seed = "ios-demo-\(appState.currentUserId)"
-        let auth = try await client.appleLogin(identityToken: seed)
-        appState.currentUserId = auth.user_id
-        appState.accessToken = auth.access_token
-        return auth.access_token
+        guard !isRecording else { return }
+
+        startRecording()
+
+        for _ in 0 ..< 30 {
+            if isRecording {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+
+        if isRecording {
+            stopAndAnalyze(appState: appState)
+        }
     }
 
     private func waitUntilCompleted(
@@ -130,6 +140,13 @@ final class RecordViewModel: ObservableObject {
                 return
             }
             if progress.stage == "failed" {
+                if let detail = try? await client.fetchSessionDetail(
+                    sessionID: sessionID,
+                    userID: userID,
+                    accessToken: accessToken
+                ), !detail.failure_reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    throw APIClientError.serverError(detail.failure_reason)
+                }
                 throw APIClientError.serverError("复盘任务失败，请稍后重试。")
             }
             try await Task.sleep(nanoseconds: 1_000_000_000)

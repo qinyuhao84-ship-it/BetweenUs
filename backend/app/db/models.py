@@ -58,3 +58,25 @@ class ProgressModel(SQLModel, table=True):
     stage: str
     percent: int
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class UserModel(SQLModel, table=True):
+    __tablename__ = "users"
+
+    user_id: str = Field(primary_key=True, index=True)
+    phone: str = Field(index=True)
+    nickname: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow)
+    last_login_at: datetime = Field(default_factory=utcnow)
+
+
+class SMSCodeModel(SQLModel, table=True):
+    __tablename__ = "sms_codes"
+
+    code_id: str = Field(primary_key=True, index=True)
+    phone: str = Field(index=True)
+    purpose: str = Field(index=True, default="login")
+    code_hash: str
+    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: datetime
+    consumed_at: datetime | None = Field(default=None)
