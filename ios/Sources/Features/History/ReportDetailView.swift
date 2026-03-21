@@ -15,7 +15,7 @@ struct ReportDetailView: View {
                     }
                     section(title: "潜在诉求", icon: "sparkles", lines: report.potentialNeeds)
                     section(title: "修复建议", icon: "wand.and.stars", lines: report.repairSuggestions)
-                    section(title: "行动任务", icon: "checklist", lines: report.actionTasks.map { "[ ] \($0.content)" })
+                    section(title: "行动任务", icon: "checklist", lines: report.actionTasks.map(\.content))
                 }
                 .padding(20)
             }
@@ -33,10 +33,15 @@ struct ReportDetailView: View {
                     .font(.headline)
                     .foregroundStyle(BetweenUsTheme.textPrimary)
             }
-            ForEach(lines, id: \.self) { line in
-                Text("• \(line)")
-                    .foregroundStyle(BetweenUsTheme.textSecondary)
-                    .textSelection(.enabled)
+            ForEach(Array(lines.enumerated()), id: \.offset) { idx, line in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("\(idx + 1).")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BetweenUsTheme.brandBlue)
+                    Text(line)
+                        .foregroundStyle(BetweenUsTheme.textSecondary)
+                        .textSelection(.enabled)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

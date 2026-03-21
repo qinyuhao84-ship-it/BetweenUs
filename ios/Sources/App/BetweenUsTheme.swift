@@ -1,21 +1,23 @@
 import SwiftUI
 
 enum BetweenUsTheme {
-    static let pageTop = Color(hex: 0xFDFBFF)
-    static let pageMid = Color(hex: 0xF6F8FF)
-    static let pageBottom = Color(hex: 0xFFF5FA)
+    static let pageTop = Color(hex: 0xF8FAFC)
+    static let pageMid = Color(hex: 0xEEF4FF)
+    static let pageBottom = Color(hex: 0xFDF4FF)
 
-    static let brandBlue = Color(hex: 0x4C7DFF)
-    static let brandBlueSoft = Color(hex: 0x8EB9FF)
-    static let brandPink = Color(hex: 0xFF7EC2)
-    static let brandPinkSoft = Color(hex: 0xFFD4EC)
+    static let brandBlue = Color(hex: 0x2563EB)
+    static let brandBlueSoft = Color(hex: 0x7AA2FF)
+    static let brandPink = Color(hex: 0xD946EF)
+    static let brandPinkSoft = Color(hex: 0xF5D0FE)
+    static let brandCta = Color(hex: 0xF97316)
 
-    static let textPrimary = Color(hex: 0x1D2742)
-    static let textSecondary = Color(hex: 0x5C6A88)
-    static let card = Color.white.opacity(0.82)
-    static let cardStrong = Color.white.opacity(0.92)
-    static let outline = Color.white.opacity(0.72)
-    static let shadow = Color(hex: 0x92A8DF, opacity: 0.28)
+    static let textPrimary = Color(hex: 0x0F172A)
+    static let textSecondary = Color(hex: 0x475569)
+    static let textTertiary = Color(hex: 0x64748B)
+    static let card = Color.white.opacity(0.88)
+    static let cardStrong = Color.white.opacity(0.96)
+    static let outline = Color.white.opacity(0.75)
+    static let shadow = Color(hex: 0x2563EB, opacity: 0.16)
 
     static let pageGradient = LinearGradient(
         colors: [pageTop, pageMid, pageBottom],
@@ -44,15 +46,22 @@ struct BetweenUsGradientBackground: View {
 
             Circle()
                 .fill(BetweenUsTheme.brandPinkSoft.opacity(0.44))
-                .frame(width: 280, height: 280)
-                .offset(x: 130, y: -250)
-                .blur(radius: 6)
+                .frame(width: 320, height: 320)
+                .offset(x: 150, y: -290)
+                .blur(radius: 10)
 
             Circle()
                 .fill(BetweenUsTheme.brandBlueSoft.opacity(0.36))
-                .frame(width: 260, height: 260)
-                .offset(x: -150, y: -220)
-                .blur(radius: 8)
+                .frame(width: 300, height: 300)
+                .offset(x: -180, y: -260)
+                .blur(radius: 12)
+
+            RoundedRectangle(cornerRadius: 42, style: .continuous)
+                .fill(BetweenUsTheme.brandBlue.opacity(0.07))
+                .frame(width: 420, height: 220)
+                .rotationEffect(.degrees(-16))
+                .offset(x: -170, y: 220)
+                .blur(radius: 2)
         }
     }
 }
@@ -63,13 +72,19 @@ struct BetweenUsCardModifier: ViewModifier {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(BetweenUsTheme.card)
+                    .fill(
+                        LinearGradient(
+                            colors: [BetweenUsTheme.cardStrong, BetweenUsTheme.card],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(BetweenUsTheme.outline, lineWidth: 1)
             )
-            .shadow(color: BetweenUsTheme.shadow, radius: 22, x: 0, y: 14)
+            .shadow(color: BetweenUsTheme.shadow, radius: 18, x: 0, y: 12)
     }
 }
 
@@ -81,10 +96,14 @@ struct BetweenUsPrimaryButtonStyle: ButtonStyle {
             .font(.headline.weight(.semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, 15)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(isDanger ? BetweenUsTheme.dangerGradient : BetweenUsTheme.ctaGradient)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
             )
             .shadow(
                 color: (isDanger ? Color.red.opacity(0.18) : BetweenUsTheme.brandPink.opacity(0.26)),
@@ -100,6 +119,27 @@ struct BetweenUsPrimaryButtonStyle: ButtonStyle {
 extension View {
     func betweenUsCardStyle() -> some View {
         modifier(BetweenUsCardModifier())
+    }
+
+    func betweenUsDisplayTitle() -> some View {
+        self
+            .font(.system(size: 42, weight: .bold, design: .rounded))
+            .tracking(-0.4)
+            .foregroundStyle(BetweenUsTheme.textPrimary)
+    }
+
+    func betweenUsHeadline() -> some View {
+        self
+            .font(.system(size: 24, weight: .bold, design: .rounded))
+            .tracking(-0.2)
+            .foregroundStyle(BetweenUsTheme.textPrimary)
+    }
+
+    func betweenUsBodyMuted() -> some View {
+        self
+            .font(.system(size: 15, weight: .medium, design: .rounded))
+            .foregroundStyle(BetweenUsTheme.textSecondary)
+            .lineSpacing(2)
     }
 }
 

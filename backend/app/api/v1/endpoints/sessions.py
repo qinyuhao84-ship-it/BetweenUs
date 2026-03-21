@@ -75,10 +75,15 @@ def finish_session(
                 daemon=True,
             ).start()
         except Exception as fallback_exc:  # noqa: BLE001
-            logger.exception("fallback pipeline execution failed for session %s", session_id)
-            session_service.fail(session_id, "任务系统暂时不可用，请稍后重试")
-            progress_service.fail(session_id)
-            raise HTTPException(status_code=503, detail="任务系统暂时不可用，请稍后重试") from fallback_exc
+            logger.exception("thread fallback failed for session %s", session_id)
+            logger.warning("running inline pipeline in request thread for session %s", session_id)
+            try:
+                ProcessingPipeline.run_sync(session_id)
+            except Exception as inline_exc:  # noqa: BLE001
+                logger.exception("inline fallback pipeline failed for session %s", session_id)
+                session_service.fail(session_id, "复盘处理失败，请稍后重试")
+                progress_service.fail(session_id)
+                raise HTTPException(status_code=503, detail="复盘处理失败，请稍后重试") from inline_exc
 
     progress = progress_service.get(session_id)
     status = "completed" if progress.stage == "completed" else "processing"

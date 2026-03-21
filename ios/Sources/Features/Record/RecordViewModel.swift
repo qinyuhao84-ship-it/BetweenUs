@@ -10,6 +10,7 @@ final class RecordViewModel: ObservableObject {
 
     private let recorderService = RecorderService()
     private var startedAt: Date?
+    private let minRecordingSeconds: TimeInterval = 2
 
     func startRecording() {
         Task {
@@ -42,6 +43,15 @@ final class RecordViewModel: ObservableObject {
         }
         isRecording = false
 
+        let elapsed = Date().timeIntervalSince(startedAt ?? Date())
+        if elapsed < minRecordingSeconds {
+            errorMessage = "录音时间过短，请至少录制 2 秒再结束。"
+            statusText = "等待录音"
+            progressPercent = 0
+            try? FileManager.default.removeItem(at: audioURL)
+            return
+        }
+
         let duration = max(1, Int(Date().timeIntervalSince(startedAt ?? Date()) / 60.0))
         statusText = "正在分析，请稍候"
         progressPercent = 10
@@ -50,58 +60,44 @@ final class RecordViewModel: ObservableObject {
             defer {
                 try? FileManager.default.removeItem(at: audioURL)
             }
-            do {
-                guard let baseURL = URL(string: appState.serverBaseURL) else {
-                    throw APIClientError.serverError("服务地址无效")
-                }
-                let userID = appState.currentUserId
-                let accessToken = try appState.requireAccessToken()
-
-                let client = APIClient(baseURL: baseURL)
-                let created = try await client.createSession(
-                    title: "自动复盘",
-                    userID: userID,
-                    accessToken: accessToken
-                )
-
-                progressPercent = 20
-                _ = try await client.uploadSessionAudio(
-                    sessionID: created.session_id,
-                    audioURL: audioURL,
-                    userID: userID,
-                    accessToken: accessToken
-                )
-
-                progressPercent = 35
-                _ = try await client.finishSession(
-                    sessionID: created.session_id,
-                    durationMinutes: duration,
-                    userID: userID,
-                    accessToken: accessToken
-                )
-
-                try await waitUntilCompleted(
-                    sessionID: created.session_id,
-                    userID: userID,
-                    accessToken: accessToken,
-                    client: client
-                )
-                let report = try await client.fetchReport(
-                    sessionID: created.session_id,
-                    userID: userID,
-                    accessToken: accessToken
-                )
-                latestReport = report
-                appState.save(report: report)
-                await appState.refreshHistory()
-                progressPercent = 100
-                statusText = "分析完成"
-            } catch {
-                errorMessage = error.localizedDescription
-                statusText = "分析失败"
-            }
+            await analyzeAudio(audioURL: audioURL, duration: duration, title: "自动复盘", appState: appState)
         }
     }
+
+#if DEBUG
+    func analyzeBundledSampleAudio(appState: AppState) {
+        guard appState.isLoggedIn else {
+            errorMessage = "请先完成登录再运行示例音频。"
+            return
+        }
+        guard let bundledURL = Bundle.main.url(forResource: "sample_conflict", withExtension: "m4a") else {
+            errorMessage = "示例音频不存在，请重新构建 App。"
+            return
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("betweenus_sample_\(UUID().uuidString)")
+            .appendingPathExtension("m4a")
+        do {
+            try? FileManager.default.removeItem(at: tempURL)
+            try FileManager.default.copyItem(at: bundledURL, to: tempURL)
+        } catch {
+            errorMessage = "示例音频准备失败：\(error.localizedDescription)"
+            return
+        }
+
+        statusText = "正在分析示例音频"
+        progressPercent = 10
+        errorMessage = nil
+
+        Task {
+            defer {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+            await analyzeAudio(audioURL: tempURL, duration: 1, title: "示例音频复盘", appState: appState)
+        }
+    }
+#endif
 
     func runAutomatedFlowIfNeeded(appState: AppState) async {
         guard ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_E2E"] == "1" else {
@@ -123,19 +119,73 @@ final class RecordViewModel: ObservableObject {
         }
     }
 
+    private func analyzeAudio(audioURL: URL, duration: Int, title: String, appState: AppState) async {
+        do {
+            guard let baseURL = URL(string: appState.serverBaseURL) else {
+                throw APIClientError.serverError("服务地址无效")
+            }
+            let userID = appState.currentUserId
+            let accessToken = try appState.requireAccessToken()
+
+            let client = APIClient(baseURL: baseURL)
+            let created = try await client.createSession(
+                title: title,
+                userID: userID,
+                accessToken: accessToken
+            )
+
+            progressPercent = 20
+            _ = try await client.uploadSessionAudio(
+                sessionID: created.session_id,
+                audioURL: audioURL,
+                userID: userID,
+                accessToken: accessToken
+            )
+
+            progressPercent = 35
+            _ = try await client.finishSession(
+                sessionID: created.session_id,
+                durationMinutes: duration,
+                userID: userID,
+                accessToken: accessToken
+            )
+
+            try await waitUntilCompleted(
+                sessionID: created.session_id,
+                userID: userID,
+                accessToken: accessToken,
+                client: client
+            )
+            let report = try await client.fetchReport(
+                sessionID: created.session_id,
+                userID: userID,
+                accessToken: accessToken
+            )
+            latestReport = report
+            appState.save(report: report)
+            await appState.refreshHistory()
+            progressPercent = 100
+            statusText = "分析完成"
+        } catch {
+            errorMessage = normalizedErrorMessage(error.localizedDescription)
+            statusText = "分析失败"
+        }
+    }
+
     private func waitUntilCompleted(
         sessionID: String,
         userID: String,
         accessToken: String,
         client: APIClient
     ) async throws {
-        for _ in 0 ..< 60 {
+        for _ in 0 ..< 180 {
             let progress = try await client.fetchProgress(
                 sessionID: sessionID,
                 userID: userID,
                 accessToken: accessToken
             )
             progressPercent = min(max(progress.percent, 0), 100)
+            statusText = statusTextForStage(progress.stage)
             if progress.stage == "completed" {
                 return
             }
@@ -152,5 +202,37 @@ final class RecordViewModel: ObservableObject {
             try await Task.sleep(nanoseconds: 1_000_000_000)
         }
         throw APIClientError.serverError("分析超时，请稍后在历史页查看结果。")
+    }
+
+    private func statusTextForStage(_ stage: String) -> String {
+        switch stage {
+        case "queued":
+            return "任务已提交，等待执行"
+        case "transcribing":
+            return "正在转写录音"
+        case "analyzing":
+            return "正在生成复盘报告"
+        case "rendering":
+            return "正在整理结果"
+        case "completed":
+            return "分析完成"
+        case "failed":
+            return "分析失败"
+        default:
+            return "正在分析，请稍候"
+        }
+    }
+
+    private func normalizedErrorMessage(_ raw: String) -> String {
+        if raw.contains("静音") {
+            return "没有检测到有效语音，请靠近麦克风并重试。"
+        }
+        if raw.contains("invalid audio format") || raw.contains("audio convert failed") {
+            return "录音格式无法识别，请重试一次；若在模拟器中测试，建议改用真机。"
+        }
+        if raw.contains("任务系统暂时不可用") {
+            return "任务队列暂时繁忙，系统已自动切换兜底通道，请稍后再试。"
+        }
+        return raw
     }
 }

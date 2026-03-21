@@ -134,7 +134,7 @@ struct APIClient {
 
         let audioData = try Data(contentsOf: audioURL)
         let filename = audioURL.lastPathComponent.isEmpty ? "recording.m4a" : audioURL.lastPathComponent
-        let mimeType = "audio/m4a"
+        let mimeType = APIClient.audioMimeType(forExtension: audioURL.pathExtension)
 
         var body = Data()
         body.append("--\(boundary)\r\n")
@@ -273,6 +273,25 @@ struct APIClient {
         }
         return decoder
     }()
+}
+
+private extension APIClient {
+    static func audioMimeType(forExtension ext: String) -> String {
+        switch ext.lowercased() {
+        case "wav":
+            return "audio/wav"
+        case "mp3":
+            return "audio/mpeg"
+        case "aac":
+            return "audio/aac"
+        case "webm":
+            return "audio/webm"
+        case "m4a", "mp4":
+            return "audio/m4a"
+        default:
+            return "application/octet-stream"
+        }
+    }
 }
 
 private extension Data {

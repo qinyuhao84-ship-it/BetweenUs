@@ -149,6 +149,38 @@ final class AppState: ObservableObject {
         }
     }
 
+#if DEBUG
+    func quickLoginForDebug(phone: String = "13800138002") async -> Bool {
+        guard let baseURL = URL(string: serverBaseURL) else {
+            authErrorMessage = "服务地址无效"
+            return false
+        }
+        authLoading = true
+        authErrorMessage = nil
+        defer { authLoading = false }
+
+        do {
+            let client = APIClient(baseURL: baseURL)
+            let sms = try await client.sendSMSCode(phone: phone)
+            guard let code = sms.dev_code, !code.isEmpty else {
+                throw APIClientError.serverError("开发环境未返回验证码，无法一键登录")
+            }
+            let auth = try await client.loginWithSMS(phone: phone, code: code)
+            currentUserId = auth.user_id
+            accessToken = auth.access_token
+            phoneNumber = auth.phone ?? phone
+            phoneMasked = auth.phone_masked ?? maskPhone(phone)
+            persistAuthState()
+            await refreshProfile()
+            await refreshRuntimeStatus()
+            return true
+        } catch {
+            authErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+#endif
+
     func persistServerBaseURL() {
         defaults.set(serverBaseURL, forKey: StorageKey.serverBaseURL)
     }

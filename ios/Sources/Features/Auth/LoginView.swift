@@ -13,14 +13,20 @@ struct LoginView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("欢迎使用 BetweenUs")
-                            .font(.largeTitle.weight(.bold))
-                            .foregroundStyle(BetweenUsTheme.textPrimary)
-                        Text("先完成手机号登录，再开始录音复盘。")
-                            .foregroundStyle(BetweenUsTheme.textSecondary)
+                        Text("BetweenUs")
+                            .betweenUsDisplayTitle()
+                        Text("把“谁对谁错”改成“我们如何更好地理解彼此”。")
+                            .betweenUsBodyMuted()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 32)
+                    .padding(.top, 30)
+
+                    VStack(spacing: 10) {
+                        valueRow(icon: "heart.text.square.fill", text: "不判输赢，只找真正诉求")
+                        valueRow(icon: "waveform.path.ecg", text: "真实录音转写，过程可核对")
+                        valueRow(icon: "hands.sparkles.fill", text: "给出可执行的修复行动")
+                    }
+                    .betweenUsCardStyle()
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("手机号")
@@ -28,8 +34,10 @@ struct LoginView: View {
                             .foregroundStyle(BetweenUsTheme.textPrimary)
                         TextField("请输入 11 位手机号", text: $phone)
                             .keyboardType(.numberPad)
+                            .textContentType(.telephoneNumber)
                             .textInputAutocapitalization(.never)
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("login.phoneField")
                             .onChange(of: phone) { _, newValue in
                                 phone = sanitizePhone(newValue)
                             }
@@ -40,8 +48,10 @@ struct LoginView: View {
                         HStack(spacing: 8) {
                             TextField("请输入验证码", text: $code)
                                 .keyboardType(.numberPad)
+                                .textContentType(.oneTimeCode)
                                 .textInputAutocapitalization(.never)
                                 .textFieldStyle(.roundedBorder)
+                                .accessibilityIdentifier("login.codeField")
                                 .onChange(of: code) { _, newValue in
                                     code = sanitizeCode(newValue)
                                 }
@@ -55,7 +65,8 @@ struct LoginView: View {
                             }
                             .buttonStyle(BetweenUsPrimaryButtonStyle())
                             .frame(width: 120)
-                            .disabled(!isPhoneValid || cooldownSeconds > 0 || appState.authLoading)
+                            .accessibilityIdentifier("login.sendCodeButton")
+                            .disabled(!isPhoneStrictlyValid || cooldownSeconds > 0 || appState.authLoading)
                         }
 
                         if let devCode = appState.loginDebugCode {
@@ -63,6 +74,13 @@ struct LoginView: View {
                                 .font(.footnote.monospacedDigit())
                                 .foregroundStyle(BetweenUsTheme.brandBlue)
                                 .textSelection(.enabled)
+                                .accessibilityIdentifier("login.devCodeText")
+                        }
+
+                        if !phone.isEmpty && !isPhoneStrictlyValid {
+                            Text("手机号格式不正确，请输入以 1 开头的 11 位手机号。")
+                                .font(.footnote)
+                                .foregroundStyle(Color.red)
                         }
 
                         Button("登录") {
@@ -71,7 +89,19 @@ struct LoginView: View {
                             }
                         }
                         .buttonStyle(BetweenUsPrimaryButtonStyle())
-                        .disabled(!isPhoneValid || code.count < 4 || appState.authLoading)
+                        .accessibilityIdentifier("login.submitButton")
+                        .disabled(!isPhoneStrictlyValid || code.count < 4 || appState.authLoading)
+
+#if DEBUG
+                        Button("开发测试：一键登录") {
+                            Task {
+                                _ = await appState.quickLoginForDebug()
+                            }
+                        }
+                        .buttonStyle(BetweenUsPrimaryButtonStyle())
+                        .accessibilityIdentifier("login.debugQuickLoginButton")
+                        .disabled(appState.authLoading)
+#endif
                     }
                     .betweenUsCardStyle()
 
@@ -91,6 +121,7 @@ struct LoginView: View {
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("login.serverField")
                             .onSubmit {
                                 appState.persistServerBaseURL()
                             }
@@ -105,8 +136,10 @@ struct LoginView: View {
         }
     }
 
-    private var isPhoneValid: Bool {
-        phone.count == 11
+    private var isPhoneStrictlyValid: Bool {
+        let chars = Array(phone)
+        guard chars.count == 11 else { return false }
+        return chars.first == "1"
     }
 
     private func sanitizePhone(_ raw: String) -> String {
@@ -128,5 +161,17 @@ struct LoginView: View {
                 break
             }
         }
+    }
+
+    @ViewBuilder
+    private func valueRow(icon: String, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(BetweenUsTheme.brandBlue)
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(BetweenUsTheme.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

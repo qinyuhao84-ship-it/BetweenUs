@@ -268,8 +268,10 @@ class ASRService:
         suffix = target.suffix.lower().lstrip(".")
         if not suffix:
             suffix = audio_url.rsplit(".", 1)[-1].lower() if "." in audio_url else ""
-        if suffix in {"wav", "mp3", "ogg", "raw"}:
+        if suffix in {"wav", "mp3", "ogg", "raw", "aac", "webm"}:
             return suffix
+        if suffix in {"m4a", "mp4"}:
+            return "mp4"
         return "wav"
 
     @staticmethod
@@ -390,16 +392,17 @@ class LLMService:
             raise ProviderError("LLM 服务未配置，请先设置 LLM_API_KEY 或 DEEPSEEK_API_KEY")
 
         system_prompt = (
-            "你是一个“冲突修复教练”，不是裁判。"
-            "你的目标是帮助双方看见彼此没有说出口的诉求，而不是判断谁对谁错。"
-            "请严格遵循："
-            "1) 不使用“谁错了”“谁赢了”这类表述；"
-            "2) summary 必须指出冲突表层争执和深层需求错位；"
-            "3) potential_needs 至少覆盖双方各 1 条隐含需求；"
+            "你是“亲密关系冲突修复教练”，不是裁判、法官或情绪宣泄对象。"
+            "目标是帮助双方看见未说出口的诉求和误读链路，而不是评判输赢。"
+            "请严格遵循以下标准："
+            "1) 绝不输出“谁对谁错”“谁该道歉”这类裁决句；"
+            "2) summary 必须同时包含：表层争执点、深层诉求错位、当前卡点；"
+            "3) potential_needs 至少 2 条，且要覆盖双方视角，可写成“A方：...”“B方：...”格式；"
             "4) repair_suggestions 必须是当下能执行的小动作，避免空泛说教；"
-            "5) action_tasks 必须可执行、可验证，包含时间或触发条件。"
-            "输出必须是严格 JSON，不要 markdown，不要额外字段。"
-            "JSON 结构必须是："
+            "5) action_tasks 必须可验证，包含时间锚点或触发条件（如“今晚 21:30 前”“下次争执升级时”）；"
+            "6) 若转写信息不足，允许保守推断，但避免过度臆测。"
+            "输出必须是严格 JSON，不要 markdown，不要解释，不要额外字段。"
+            "JSON 结构固定为："
             '{"summary":"...",'
             '"potential_needs":["..."],'
             '"repair_suggestions":["..."],'
@@ -407,7 +410,7 @@ class LLMService:
         )
         user_prompt = (
             "请基于以下转写内容生成中文复盘报告。"
-            "重点提炼：双方情绪触发点、隐含诉求、可立刻执行的修复动作。\n"
+            "重点提炼：双方情绪触发点、隐含诉求、误解来源、可立刻执行的修复动作。\n"
             f"转写文本：\n{transcript}\n"
         )
         payload = {

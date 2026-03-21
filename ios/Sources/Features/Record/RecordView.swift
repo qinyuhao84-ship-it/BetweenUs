@@ -18,40 +18,9 @@ struct RecordView: View {
                             .betweenUsCardStyle()
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(BetweenUsTheme.brandPink)
-                            Text("温柔复盘")
-                                .font(.headline)
-                                .foregroundStyle(BetweenUsTheme.textPrimary)
-                        }
-                        Text("目标是帮助你看见真正诉求，而不是判输赢。")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(BetweenUsTheme.textSecondary)
-                    }
-                    .betweenUsCardStyle()
+                    heroSection
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("当前状态")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(BetweenUsTheme.textSecondary)
-                            Spacer()
-                            Text("进度 \(viewModel.progressPercent)%")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(BetweenUsTheme.brandBlue)
-                                .monospacedDigit()
-                        }
-
-                        Text(viewModel.statusText)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(BetweenUsTheme.textPrimary)
-
-                        ProgressView(value: Double(viewModel.progressPercent), total: 100)
-                            .tint(BetweenUsTheme.brandBlue)
-                    }
-                    .betweenUsCardStyle()
+                    statusSection
 
                     Button {
                         if viewModel.isRecording {
@@ -67,22 +36,33 @@ struct RecordView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: viewModel.isRecording))
+                    .accessibilityIdentifier("record.toggleButton")
                     .disabled(!appState.isLoggedIn)
 
+#if DEBUG
+                    Button("开发测试：用示例音频跑通全链路") {
+                        viewModel.analyzeBundledSampleAudio(appState: appState)
+                    }
+                    .buttonStyle(BetweenUsPrimaryButtonStyle())
+                    .accessibilityIdentifier("record.debugSampleButton")
+                    .disabled(!appState.isLoggedIn || viewModel.isRecording)
+#endif
+
                     if let error = viewModel.errorMessage {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(Color.red)
-                            .textSelection(.enabled)
-                            .betweenUsCardStyle()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("本次复盘中断", systemImage: "exclamationmark.triangle.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.red)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(Color.red)
+                                .textSelection(.enabled)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .betweenUsCardStyle()
                     }
 
-                    Text(appState.runtimeStatusMessage)
-                        .font(.footnote)
-                        .foregroundStyle(
-                            appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
-                        )
-                        .betweenUsCardStyle()
+                    runtimeSection
 
                     if let report = viewModel.latestReport {
                         NavigationLink {
@@ -98,6 +78,7 @@ struct RecordView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("record.latestReportButton")
                         .betweenUsCardStyle()
                     }
                 }
@@ -109,5 +90,85 @@ struct RecordView: View {
             didRunAutomation = true
             await viewModel.runAutomatedFlowIfNeeded(appState: appState)
         }
+    }
+
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "heart.text.square.fill")
+                    .foregroundStyle(BetweenUsTheme.brandPink)
+                Text("我们不判输赢，只修复关系")
+                    .font(.headline)
+                    .foregroundStyle(BetweenUsTheme.textPrimary)
+            }
+
+            Text("你负责真实表达，我们负责把情绪噪音还原成可执行的理解与行动。")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(BetweenUsTheme.textSecondary)
+                .lineSpacing(2)
+
+            HStack(spacing: 8) {
+                promisePill(icon: "ear.fill", text: "听见没说出口的需求")
+                promisePill(icon: "checkmark.seal.fill", text: "输出可验证行动")
+            }
+        }
+        .betweenUsCardStyle()
+    }
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("当前状态")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BetweenUsTheme.textSecondary)
+                Spacer()
+                Text("进度 \(viewModel.progressPercent)%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BetweenUsTheme.brandBlue)
+                    .monospacedDigit()
+            }
+
+            Text(viewModel.statusText)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(BetweenUsTheme.textPrimary)
+
+            ProgressView(value: Double(viewModel.progressPercent), total: 100)
+                .tint(BetweenUsTheme.brandBlue)
+        }
+        .betweenUsCardStyle()
+    }
+
+    private var runtimeSection: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: appState.runtimeStatus?.isFullyRealPipeline == true ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
+                .foregroundStyle(
+                    appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
+                )
+            Text(appState.runtimeStatusMessage)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(
+                    appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
+                )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .betweenUsCardStyle()
+    }
+
+    @ViewBuilder
+    private func promisePill(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(BetweenUsTheme.textPrimary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            Capsule()
+                .fill(Color.white.opacity(0.7))
+        )
     }
 }

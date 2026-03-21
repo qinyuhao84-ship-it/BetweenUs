@@ -23,7 +23,7 @@ final class RecorderService: NSObject, AVAudioRecorderDelegate {
         if useFakeRecorder {
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("betweenus")
-                .appendingPathExtension("m4a")
+                .appendingPathExtension("wav")
             try Data("betweenus-fake-audio".utf8).write(to: url)
             fileURL = url
             return
@@ -35,13 +35,15 @@ final class RecorderService: NSObject, AVAudioRecorderDelegate {
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("betweenus")
-            .appendingPathExtension("m4a")
+            .appendingPathExtension("wav")
 
         let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44_100,
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 16_000,
             AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsFloatKey: false,
         ]
 
         recorder = try AVAudioRecorder(url: url, settings: settings)

@@ -10,6 +10,7 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(spacing: 14) {
+                    profileHeader
                     accountSection
                     runtimeSection
                     serviceSection
@@ -23,6 +24,17 @@ struct SettingsView: View {
         }
     }
 
+    private var profileHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("账号与系统")
+                .betweenUsHeadline()
+            Text("在这里管理你的身份信息、服务连接和 AI 运行状态。")
+                .betweenUsBodyMuted()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .betweenUsCardStyle()
+    }
+
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("账号")
@@ -30,8 +42,13 @@ struct SettingsView: View {
                 .foregroundStyle(BetweenUsTheme.textPrimary)
 
             if appState.isLoggedIn {
+                Label("已登录", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BetweenUsTheme.brandBlue)
+
                 accountRow(label: "手机号", value: appState.phoneMasked.isEmpty ? appState.phoneNumber : appState.phoneMasked)
                 accountRow(label: "用户 ID", value: appState.currentUserId)
+                accountRow(label: "昵称", value: appState.nickname.isEmpty ? "未设置" : appState.nickname)
 
                 TextField("昵称", text: $pendingNickname)
                     .textFieldStyle(.roundedBorder)

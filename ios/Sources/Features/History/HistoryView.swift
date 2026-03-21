@@ -9,6 +9,8 @@ struct HistoryView: View {
 
             ScrollView {
                 VStack(spacing: 12) {
+                    headerCard
+
                     if !appState.isLoggedIn {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("请先登录")
@@ -51,7 +53,7 @@ struct HistoryView: View {
                             Text("暂无复盘记录")
                                 .font(.headline)
                                 .foregroundStyle(BetweenUsTheme.textPrimary)
-                            Text("做一次录音复盘后，这里会自动出现历史。")
+                            Text("完成一次复盘后，这里会自动出现可追踪的关系修复轨迹。")
                                 .font(.footnote)
                                 .foregroundStyle(BetweenUsTheme.textSecondary)
                         }
@@ -65,18 +67,18 @@ struct HistoryView: View {
                                 ReportDetailView(report: report)
                             } label: {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text(session.title)
-                                        .font(.headline)
-                                        .foregroundStyle(BetweenUsTheme.textPrimary)
-                                        .lineLimit(2)
-
                                     HStack {
-                                        Image(systemName: "clock")
+                                        Image(systemName: "calendar.badge.clock")
                                             .foregroundStyle(BetweenUsTheme.brandBlue)
                                         Text(session.createdAt.formatted(date: .abbreviated, time: .shortened))
                                             .font(.caption)
                                             .foregroundStyle(BetweenUsTheme.textSecondary)
                                     }
+
+                                    Text(session.title)
+                                        .font(.headline)
+                                        .foregroundStyle(BetweenUsTheme.textPrimary)
+                                        .lineLimit(2)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .betweenUsCardStyle()
@@ -96,5 +98,16 @@ struct HistoryView: View {
                 await appState.refreshHistory()
             }
         }
+    }
+
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("关系修复轨迹")
+                .betweenUsHeadline()
+            Text("每次复盘都会沉淀成可回看的证据：触发点、隐藏诉求、下一步行动。")
+                .betweenUsBodyMuted()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .betweenUsCardStyle()
     }
 }
