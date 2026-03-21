@@ -208,14 +208,71 @@ final class AppState: ObservableObject {
 
     func save(report: ConflictReport) {
         reports[report.sessionID] = report
+        let fallbackTitle = suggestedTitle(forSummary: report.summary)
         let summary = SessionSummary(
             id: report.sessionID,
-            title: report.summary,
+            title: fallbackTitle,
             createdAt: Date(),
             status: "completed"
         )
         sessions.removeAll { $0.id == summary.id }
         sessions.insert(summary, at: 0)
+    }
+
+    func updateSessionTitle(sessionID: String, newTitle: String) async -> Bool {
+        guard isLoggedIn else {
+            authErrorMessage = "请先登录"
+            return false
+        }
+        let normalized = newTitle
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            historyErrorMessage = "标题不能为空"
+            return false
+        }
+        guard let baseURL = URL(string: serverBaseURL) else {
+            historyErrorMessage = "服务地址无效"
+            return false
+        }
+
+        do {
+            let client = APIClient(baseURL: baseURL)
+            let detail = try await client.updateSessionTitle(
+                sessionID: sessionID,
+                title: String(normalized.prefix(60)),
+                userID: currentUserId,
+                accessToken: accessToken
+            )
+            sessions = sessions.map {
+                guard $0.id == sessionID else { return $0 }
+                return SessionSummary(id: $0.id, title: detail.title, createdAt: $0.createdAt, status: $0.status)
+            }
+            return true
+        } catch {
+            historyErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func suggestedTitle(forSummary summary: String) -> String {
+        let cleaned = summary
+            .replacingOccurrences(of: "【冲突主线】", with: "")
+            .replacingOccurrences(of: "【双方表述】", with: "")
+            .replacingOccurrences(of: "【深层诉求】", with: "")
+            .replacingOccurrences(of: "【当前卡点】", with: "")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let separators = CharacterSet(charactersIn: "。！？；\n")
+        let firstSentence = cleaned.components(separatedBy: separators).first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let candidate = String(firstSentence.prefix(16))
+        if candidate.count >= 6 {
+            return candidate
+        }
+        return "关系修复复盘"
     }
 
     func refreshHistory() async {
@@ -253,10 +310,21 @@ final class AppState: ObservableObject {
                         accessToken: accessToken
                     )
                     fetchedReports[item.session_id] = report
+                    var resolvedTitle = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let suggested = suggestedTitle(forSummary: report.summary)
+                    if shouldAutoRenameTitle(resolvedTitle) {
+                        resolvedTitle = suggested
+                        _ = try? await client.updateSessionTitle(
+                            sessionID: item.session_id,
+                            title: suggested,
+                            userID: currentUserId,
+                            accessToken: accessToken
+                        )
+                    }
                     fetchedSummaries.append(
                         SessionSummary(
                             id: item.session_id,
-                            title: report.summary,
+                            title: resolvedTitle.isEmpty ? suggested : resolvedTitle,
                             createdAt: item.created_at,
                             status: item.status
                         )
@@ -307,5 +375,19 @@ final class AppState: ObservableObject {
         let prefix = phone.prefix(3)
         let suffix = phone.suffix(4)
         return "\(prefix)****\(suffix)"
+    }
+
+    private func shouldAutoRenameTitle(_ title: String) -> Bool {
+        let normalized = title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized.isEmpty {
+            return true
+        }
+        let genericTitles = [
+            "自动复盘",
+            "示例音频复盘",
+            "冲突复盘",
+            "untitled",
+        ]
+        return genericTitles.contains(where: { normalized == $0.lowercased() })
     }
 }

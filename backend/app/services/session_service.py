@@ -66,6 +66,21 @@ class SessionService:
             db.refresh(row)
             return self._to_record(row)
 
+    def update_title(self, session_id: str, title: str) -> SessionRecord:
+        normalized = " ".join(title.split()).strip()
+        if not normalized:
+            raise ValueError("标题不能为空")
+
+        with session_scope() as db:
+            row = db.get(SessionModel, session_id)
+            if row is None:
+                raise KeyError(session_id)
+            row.title = normalized[:60]
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return self._to_record(row)
+
     def complete(self, session_id: str, transcript: str, report: ReportResponse) -> SessionRecord:
         with session_scope() as db:
             session_row = db.get(SessionModel, session_id)

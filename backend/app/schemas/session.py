@@ -11,6 +11,7 @@ class CreateSessionRequest(BaseModel):
 
 class SessionResponse(BaseModel):
     session_id: str
+    title: str
     status: str
     created_at: datetime
 
@@ -40,3 +41,7 @@ class SessionDetailResponse(BaseModel):
     duration_minutes: int
     failure_reason: str
     transcript_excerpt: str
+
+
+class UpdateSessionTitleRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=60)

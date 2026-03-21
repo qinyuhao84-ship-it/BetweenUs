@@ -3,21 +3,36 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @State private var pendingNickname: String = ""
+    @State private var profileSaving: Bool = false
 
     var body: some View {
         ZStack {
             BetweenUsGradientBackground()
 
-            ScrollView {
-                VStack(spacing: 14) {
+            List {
+                Section {
                     profileHeader
+                }
+                .listRowBackground(Color.clear)
+
+                Section("账号管理") {
                     accountSection
+                }
+
+                Section("AI 服务状态") {
                     runtimeSection
+                }
+
+                Section("连接与同步") {
                     serviceSection
+                }
+
+                Section("计费与说明") {
                     billingSection
                 }
-                .padding(20)
             }
+            .scrollContentBackground(.hidden)
+            .listStyle(.insetGrouped)
         }
         .task {
             pendingNickname = appState.nickname
@@ -25,47 +40,74 @@ struct SettingsView: View {
     }
 
     private var profileHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("账号与系统")
-                .betweenUsHeadline()
-            Text("在这里管理你的身份信息、服务连接和 AI 运行状态。")
-                .betweenUsBodyMuted()
+        HStack(spacing: 12) {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [BetweenUsTheme.brandCta, BetweenUsTheme.brandBlue],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 52, height: 52)
+                .overlay {
+                    Text(profileInitial)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(appState.isLoggedIn ? (appState.nickname.isEmpty ? "未设置昵称" : appState.nickname) : "未登录")
+                    .font(.headline)
+                    .foregroundStyle(BetweenUsTheme.textPrimary)
+                Text(appState.phoneMasked.isEmpty ? "登录后可管理你的账号信息" : appState.phoneMasked)
+                    .font(.footnote)
+                    .foregroundStyle(BetweenUsTheme.textSecondary)
+                Text("账号中心")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BetweenUsTheme.brandBlue)
+            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .betweenUsCardStyle()
     }
 
     private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("账号")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
+        Group {
             if appState.isLoggedIn {
-                Label("已登录", systemImage: "checkmark.seal.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BetweenUsTheme.brandBlue)
+                VStack(alignment: .leading, spacing: 14) {
+                    settingRow(label: "手机号", value: appState.phoneMasked.isEmpty ? appState.phoneNumber : appState.phoneMasked)
+                    settingRow(label: "账号 ID", value: appState.currentUserId)
+                    settingRow(label: "当前昵称", value: appState.nickname.isEmpty ? "未设置" : appState.nickname)
 
-                accountRow(label: "手机号", value: appState.phoneMasked.isEmpty ? appState.phoneNumber : appState.phoneMasked)
-                accountRow(label: "用户 ID", value: appState.currentUserId)
-                accountRow(label: "昵称", value: appState.nickname.isEmpty ? "未设置" : appState.nickname)
+                    TextField("设置昵称", text: $pendingNickname)
+                        .textFieldStyle(.roundedBorder)
 
-                TextField("昵称", text: $pendingNickname)
-                    .textFieldStyle(.roundedBorder)
-
-                Button("保存昵称") {
-                    Task {
-                        _ = await appState.updateNickname(pendingNickname)
+                    Button {
+                        profileSaving = true
+                        Task {
+                            defer { profileSaving = false }
+                            _ = await appState.updateNickname(pendingNickname)
+                        }
+                    } label: {
+                        if profileSaving {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Text("保存昵称")
+                                .frame(maxWidth: .infinity)
+                        }
                     }
-                }
-                .buttonStyle(BetweenUsPrimaryButtonStyle())
+                    .buttonStyle(BetweenUsPrimaryButtonStyle())
+                    .disabled(profileSaving)
 
-                Button("退出登录") {
-                    appState.logout()
+                    Button("退出登录") {
+                        appState.logout()
+                    }
+                    .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: true))
                 }
-                .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: true))
             } else {
-                Text("未登录。请返回登录页完成手机号验证。")
+                Text("未登录。请先返回登录页完成手机号验证。")
                     .font(.footnote)
                     .foregroundStyle(BetweenUsTheme.textSecondary)
             }
@@ -73,30 +115,30 @@ struct SettingsView: View {
             if let authError = appState.authErrorMessage {
                 Text(authError)
                     .font(.footnote)
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(.red)
                     .textSelection(.enabled)
             }
         }
-        .betweenUsCardStyle()
     }
 
     private var runtimeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("AI 运行状态")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
-            Text(appState.runtimeStatusMessage)
-                .font(.footnote)
-                .foregroundStyle(
-                    appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
-                )
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandTeal : Color.orange)
+                    .frame(width: 10, height: 10)
+                Text(appState.runtimeStatusMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(
+                        appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandTeal : Color.orange
+                    )
+            }
 
             if let runtime = appState.runtimeStatus {
-                accountRow(label: "ASR 提供方", value: runtime.asr_provider)
-                accountRow(label: "ASR Mock", value: runtime.asr_mock_enabled ? "是" : "否")
-                accountRow(label: "LLM Mock", value: runtime.llm_mock_enabled ? "是" : "否")
-                accountRow(label: "队列 Eager", value: runtime.queue_eager_mode ? "是" : "否")
+                settingRow(label: "ASR 提供方", value: runtime.asr_provider)
+                settingRow(label: "ASR Mock", value: runtime.asr_mock_enabled ? "开启" : "关闭")
+                settingRow(label: "LLM Mock", value: runtime.llm_mock_enabled ? "开启" : "关闭")
+                settingRow(label: "队列 Eager", value: runtime.queue_eager_mode ? "开启" : "关闭")
             }
 
             Button("刷新运行状态") {
@@ -106,15 +148,10 @@ struct SettingsView: View {
             }
             .buttonStyle(BetweenUsPrimaryButtonStyle())
         }
-        .betweenUsCardStyle()
     }
 
     private var serviceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("服务")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
             TextField("服务地址", text: $appState.serverBaseURL)
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
@@ -136,15 +173,10 @@ struct SettingsView: View {
             }
             .buttonStyle(BetweenUsPrimaryButtonStyle())
         }
-        .betweenUsCardStyle()
     }
 
     private var billingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("计费规则")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
             Text("按每 60 分钟记 1 单位，不足 60 分钟按 1 单位计。")
                 .foregroundStyle(BetweenUsTheme.textSecondary)
 
@@ -152,10 +184,19 @@ struct SettingsView: View {
                 .foregroundStyle(BetweenUsTheme.brandBlue)
                 .monospacedDigit()
         }
-        .betweenUsCardStyle()
     }
 
-    private func accountRow(label: String, value: String) -> some View {
+    private var profileInitial: String {
+        if !appState.nickname.isEmpty {
+            return String(appState.nickname.prefix(1))
+        }
+        if !appState.phoneMasked.isEmpty {
+            return String(appState.phoneMasked.prefix(1))
+        }
+        return "我"
+    }
+
+    private func settingRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
                 .foregroundStyle(BetweenUsTheme.textSecondary)

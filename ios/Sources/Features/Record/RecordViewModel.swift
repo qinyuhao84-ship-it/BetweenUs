@@ -1,10 +1,12 @@
 import Foundation
+import SwiftUI
 
 @MainActor
 final class RecordViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var statusText = "点击开始录音"
     @Published var progressPercent = 0
+    @Published var progressDisplay: Double = 0
     @Published var errorMessage: String?
     @Published var latestReport: ConflictReport?
 
@@ -25,7 +27,7 @@ final class RecordViewModel: ObservableObject {
                 startedAt = Date()
                 isRecording = true
                 statusText = "录音中..."
-                progressPercent = 0
+                setProgress(0, animated: false)
                 errorMessage = nil
             } catch {
                 errorMessage = "启动录音失败：\(error.localizedDescription)"
@@ -47,20 +49,20 @@ final class RecordViewModel: ObservableObject {
         if elapsed < minRecordingSeconds {
             errorMessage = "录音时间过短，请至少录制 2 秒再结束。"
             statusText = "等待录音"
-            progressPercent = 0
+            setProgress(0)
             try? FileManager.default.removeItem(at: audioURL)
             return
         }
 
         let duration = max(1, Int(Date().timeIntervalSince(startedAt ?? Date()) / 60.0))
         statusText = "正在分析，请稍候"
-        progressPercent = 10
+        setProgress(10)
 
         Task {
             defer {
                 try? FileManager.default.removeItem(at: audioURL)
             }
-            await analyzeAudio(audioURL: audioURL, duration: duration, title: "自动复盘", appState: appState)
+            await analyzeAudio(audioURL: audioURL, duration: duration, title: "关系修复复盘", appState: appState)
         }
     }
 
@@ -87,19 +89,25 @@ final class RecordViewModel: ObservableObject {
         }
 
         statusText = "正在分析示例音频"
-        progressPercent = 10
+        setProgress(10)
         errorMessage = nil
 
         Task {
             defer {
                 try? FileManager.default.removeItem(at: tempURL)
             }
-            await analyzeAudio(audioURL: tempURL, duration: 1, title: "示例音频复盘", appState: appState)
+            await analyzeAudio(audioURL: tempURL, duration: 1, title: "示例场景复盘", appState: appState)
         }
     }
 #endif
 
     func runAutomatedFlowIfNeeded(appState: AppState) async {
+#if DEBUG
+        if ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_SAMPLE"] == "1" {
+            analyzeBundledSampleAudio(appState: appState)
+            return
+        }
+#endif
         guard ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_E2E"] == "1" else {
             return
         }
@@ -134,7 +142,7 @@ final class RecordViewModel: ObservableObject {
                 accessToken: accessToken
             )
 
-            progressPercent = 20
+            setProgress(20)
             _ = try await client.uploadSessionAudio(
                 sessionID: created.session_id,
                 audioURL: audioURL,
@@ -142,7 +150,7 @@ final class RecordViewModel: ObservableObject {
                 accessToken: accessToken
             )
 
-            progressPercent = 35
+            setProgress(35)
             _ = try await client.finishSession(
                 sessionID: created.session_id,
                 durationMinutes: duration,
@@ -163,8 +171,15 @@ final class RecordViewModel: ObservableObject {
             )
             latestReport = report
             appState.save(report: report)
+            let suggestedTitle = appState.suggestedTitle(forSummary: report.summary)
+            _ = try? await client.updateSessionTitle(
+                sessionID: created.session_id,
+                title: suggestedTitle,
+                userID: userID,
+                accessToken: accessToken
+            )
             await appState.refreshHistory()
-            progressPercent = 100
+            setProgress(100)
             statusText = "分析完成"
         } catch {
             errorMessage = normalizedErrorMessage(error.localizedDescription)
@@ -184,7 +199,7 @@ final class RecordViewModel: ObservableObject {
                 userID: userID,
                 accessToken: accessToken
             )
-            progressPercent = min(max(progress.percent, 0), 100)
+            setProgress(progress.percent)
             statusText = statusTextForStage(progress.stage)
             if progress.stage == "completed" {
                 return
@@ -234,5 +249,17 @@ final class RecordViewModel: ObservableObject {
             return "任务队列暂时繁忙，系统已自动切换兜底通道，请稍后再试。"
         }
         return raw
+    }
+
+    private func setProgress(_ value: Int, animated: Bool = true) {
+        let clamped = min(max(value, 0), 100)
+        progressPercent = clamped
+        if animated {
+            withAnimation(.interactiveSpring(response: 0.45, dampingFraction: 0.9, blendDuration: 0.25)) {
+                progressDisplay = Double(clamped) / 100.0
+            }
+        } else {
+            progressDisplay = Double(clamped) / 100.0
+        }
     }
 }

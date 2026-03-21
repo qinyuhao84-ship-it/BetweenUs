@@ -392,15 +392,18 @@ class LLMService:
             raise ProviderError("LLM 服务未配置，请先设置 LLM_API_KEY 或 DEEPSEEK_API_KEY")
 
         system_prompt = (
-            "你是“亲密关系冲突修复教练”，不是裁判、法官或情绪宣泄对象。"
-            "目标是帮助双方看见未说出口的诉求和误读链路，而不是评判输赢。"
-            "请严格遵循以下标准："
-            "1) 绝不输出“谁对谁错”“谁该道歉”这类裁决句；"
-            "2) summary 必须同时包含：表层争执点、深层诉求错位、当前卡点；"
-            "3) potential_needs 至少 2 条，且要覆盖双方视角，可写成“A方：...”“B方：...”格式；"
-            "4) repair_suggestions 必须是当下能执行的小动作，避免空泛说教；"
-            "5) action_tasks 必须可验证，包含时间锚点或触发条件（如“今晚 21:30 前”“下次争执升级时”）；"
-            "6) 若转写信息不足，允许保守推断，但避免过度臆测。"
+            "你是“关系修复复盘教练”，不是裁判。"
+            "你的目标是把一段冲突对话拆成可理解、可执行、可复盘的关系修复方案。"
+            "禁止输出评判输赢、道德指责或谁该被教育。"
+            "请严格遵循："
+            "1) summary 使用四段结构并打上小标题："
+            "【冲突主线】、【双方表述】、【深层诉求】、【当前卡点】；"
+            "2) 【双方表述】必须同时写出 A 方和 B 方“说了什么 + 真正在意什么”；"
+            "3) potential_needs 至少 4 条，且必须覆盖双方，建议格式："
+            "“A方显性表达：...；A方隐含诉求：...”或“B方...”；"
+            "4) repair_suggestions 至少 4 条，要求具体到话术或动作，避免“多沟通”这类空话；"
+            "5) action_tasks 至少 3 条，必须可验证，包含时间锚点、触发条件或完成标准；"
+            "6) 若信息不足，明确写“基于现有信息的保守推断”，不要臆造事实。"
             "输出必须是严格 JSON，不要 markdown，不要解释，不要额外字段。"
             "JSON 结构固定为："
             '{"summary":"...",'
@@ -410,7 +413,9 @@ class LLMService:
         )
         user_prompt = (
             "请基于以下转写内容生成中文复盘报告。"
-            "重点提炼：双方情绪触发点、隐含诉求、误解来源、可立刻执行的修复动作。\n"
+            "你要像资深产品经理+关系教练那样组织信息，让用户读完后立刻知道："
+            "双方到底在争什么、真正怕什么、误会卡在哪里、下一步怎么做。"
+            "重点提炼：冲突触发点、双方表述、深层诉求、误读链路、可立即执行的修复动作。\n"
             f"转写文本：\n{transcript}\n"
         )
         payload = {
@@ -423,15 +428,32 @@ class LLMService:
             "response_format": {"type": "json_object"},
         }
 
-        try:
-            response = httpx.post(
-                f"{self.settings.llm_base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {self.settings.llm_api_key}"},
-                json=payload,
-                timeout=self.settings.provider_timeout_seconds,
-            )
-        except httpx.HTTPError as exc:
-            raise ProviderError("LLM 网络请求失败，请稍后重试") from exc
+        response: httpx.Response | None = None
+        last_http_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                response = httpx.post(
+                    f"{self.settings.llm_base_url.rstrip('/')}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.settings.llm_api_key}"},
+                    json=payload,
+                    timeout=self.settings.provider_timeout_seconds,
+                )
+            except httpx.HTTPError as exc:
+                last_http_error = exc
+                if attempt < 2:
+                    time.sleep(1.2 * (attempt + 1))
+                    continue
+                break
+
+            if response.status_code in {429} or response.status_code >= 500:
+                if attempt < 2:
+                    time.sleep(1.2 * (attempt + 1))
+                    continue
+
+            break
+
+        if response is None:
+            raise ProviderError("LLM 网络请求失败，请稍后重试") from last_http_error
 
         if response.status_code >= 400:
             raise ProviderError(ASRService._read_remote_error(response, "LLM"))
@@ -491,10 +513,10 @@ class LLMService:
             raise ProviderError("LLM 缺少 action_tasks")
 
         return ReportDraft(
-            summary=summary[:300],
-            potential_needs=potential_needs[:5],
-            repair_suggestions=repair_suggestions[:5],
-            action_tasks=[ReportDraftTask(content=item.content[:120]) for item in action_tasks[:5]],
+            summary=summary[:900],
+            potential_needs=potential_needs[:8],
+            repair_suggestions=repair_suggestions[:8],
+            action_tasks=[ReportDraftTask(content=item.content[:180]) for item in action_tasks[:6]],
         )
 
     @staticmethod

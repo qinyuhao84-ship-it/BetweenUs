@@ -13,6 +13,7 @@ struct SessionCreateRequest: Codable {
 
 struct SessionCreateResponse: Codable {
     let session_id: String
+    let title: String
     let status: String
 }
 
@@ -45,6 +46,7 @@ struct SessionAudioUploadResponse: Codable {
 
 struct SessionListItemResponse: Codable {
     let session_id: String
+    let title: String
     let status: String
     let created_at: Date
 }
@@ -57,4 +59,8 @@ struct SessionDetailResponse: Codable {
     let duration_minutes: Int
     let failure_reason: String
     let transcript_excerpt: String
+}
+
+struct SessionTitleUpdateRequest: Codable {
+    let title: String
 }

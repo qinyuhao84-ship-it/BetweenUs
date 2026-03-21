@@ -97,19 +97,19 @@ struct RecordView: View {
             HStack(spacing: 8) {
                 Image(systemName: "heart.text.square.fill")
                     .foregroundStyle(BetweenUsTheme.brandPink)
-                Text("我们不判输赢，只修复关系")
+                Text("先把彼此听懂，再谈怎么改变")
                     .font(.headline)
                     .foregroundStyle(BetweenUsTheme.textPrimary)
             }
 
-            Text("你负责真实表达，我们负责把情绪噪音还原成可执行的理解与行动。")
+            Text("你只需要如实说出当下发生了什么，我们把情绪里的噪音拆开，沉淀成能落地的修复步骤。")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(BetweenUsTheme.textSecondary)
                 .lineSpacing(2)
 
             HStack(spacing: 8) {
-                promisePill(icon: "ear.fill", text: "听见没说出口的需求")
-                promisePill(icon: "checkmark.seal.fill", text: "输出可验证行动")
+                promisePill(icon: "ear.fill", text: "听见没说出口的在意")
+                promisePill(icon: "checkmark.seal.fill", text: "给出可执行下一步")
             }
         }
         .betweenUsCardStyle()
@@ -132,8 +132,7 @@ struct RecordView: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(BetweenUsTheme.textPrimary)
 
-            ProgressView(value: Double(viewModel.progressPercent), total: 100)
-                .tint(BetweenUsTheme.brandBlue)
+            BetweenUsSmoothProgressBar(progress: viewModel.progressDisplay)
         }
         .betweenUsCardStyle()
     }

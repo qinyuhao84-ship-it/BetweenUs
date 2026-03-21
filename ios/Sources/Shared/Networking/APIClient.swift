@@ -202,6 +202,23 @@ struct APIClient {
         )
     }
 
+    func updateSessionTitle(
+        sessionID: String,
+        title: String,
+        userID: String,
+        accessToken: String?
+    ) async throws -> SessionDetailResponse {
+        let body = SessionTitleUpdateRequest(title: title)
+        return try await request(
+            path: "/v1/sessions/\(sessionID)/title",
+            method: "PATCH",
+            userID: userID,
+            accessToken: accessToken,
+            body: body,
+            response: SessionDetailResponse.self
+        )
+    }
+
     func fetchRuntimeStatus() async throws -> RuntimeStatusResponse {
         try await request(
             path: "/v1/system/runtime-status",
@@ -260,10 +277,22 @@ struct APIClient {
         formatterWithFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
+        let naiveWithFractional = DateFormatter()
+        naiveWithFractional.locale = Locale(identifier: "en_US_POSIX")
+        naiveWithFractional.timeZone = TimeZone(secondsFromGMT: 0)
+        naiveWithFractional.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        let naive = DateFormatter()
+        naive.locale = Locale(identifier: "en_US_POSIX")
+        naive.timeZone = TimeZone(secondsFromGMT: 0)
+        naive.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let raw = try container.decode(String.self)
-            if let d = formatterWithFractional.date(from: raw) ?? formatter.date(from: raw) {
+            if let d = formatterWithFractional.date(from: raw)
+                ?? formatter.date(from: raw)
+                ?? naiveWithFractional.date(from: raw)
+                ?? naive.date(from: raw)
+            {
                 return d
             }
             throw DecodingError.dataCorruptedError(

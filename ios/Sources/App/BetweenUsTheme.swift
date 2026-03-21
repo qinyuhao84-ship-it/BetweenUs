@@ -1,23 +1,24 @@
 import SwiftUI
 
 enum BetweenUsTheme {
-    static let pageTop = Color(hex: 0xF8FAFC)
-    static let pageMid = Color(hex: 0xEEF4FF)
-    static let pageBottom = Color(hex: 0xFDF4FF)
+    static let pageTop = Color(hex: 0xF9F8F5)
+    static let pageMid = Color(hex: 0xECF3FF)
+    static let pageBottom = Color(hex: 0xFFF5EC)
 
     static let brandBlue = Color(hex: 0x2563EB)
     static let brandBlueSoft = Color(hex: 0x7AA2FF)
-    static let brandPink = Color(hex: 0xD946EF)
-    static let brandPinkSoft = Color(hex: 0xF5D0FE)
+    static let brandPink = Color(hex: 0xF97316)
+    static let brandPinkSoft = Color(hex: 0xFED7AA)
     static let brandCta = Color(hex: 0xF97316)
+    static let brandTeal = Color(hex: 0x14B8A6)
 
     static let textPrimary = Color(hex: 0x0F172A)
-    static let textSecondary = Color(hex: 0x475569)
+    static let textSecondary = Color(hex: 0x334155)
     static let textTertiary = Color(hex: 0x64748B)
-    static let card = Color.white.opacity(0.88)
-    static let cardStrong = Color.white.opacity(0.96)
-    static let outline = Color.white.opacity(0.75)
-    static let shadow = Color(hex: 0x2563EB, opacity: 0.16)
+    static let card = Color.white.opacity(0.9)
+    static let cardStrong = Color.white.opacity(0.98)
+    static let outline = Color.white.opacity(0.72)
+    static let shadow = Color(hex: 0x0F172A, opacity: 0.1)
 
     static let pageGradient = LinearGradient(
         colors: [pageTop, pageMid, pageBottom],
@@ -26,7 +27,7 @@ enum BetweenUsTheme {
     )
 
     static let ctaGradient = LinearGradient(
-        colors: [brandPink, brandBlue],
+        colors: [brandCta, brandBlue],
         startPoint: .leading,
         endPoint: .trailing
     )
@@ -46,15 +47,15 @@ struct BetweenUsGradientBackground: View {
 
             Circle()
                 .fill(BetweenUsTheme.brandPinkSoft.opacity(0.44))
-                .frame(width: 320, height: 320)
-                .offset(x: 150, y: -290)
-                .blur(radius: 10)
+                .frame(width: 340, height: 340)
+                .offset(x: 170, y: -280)
+                .blur(radius: 14)
 
             Circle()
                 .fill(BetweenUsTheme.brandBlueSoft.opacity(0.36))
-                .frame(width: 300, height: 300)
-                .offset(x: -180, y: -260)
-                .blur(radius: 12)
+                .frame(width: 320, height: 320)
+                .offset(x: -170, y: -250)
+                .blur(radius: 14)
 
             RoundedRectangle(cornerRadius: 42, style: .continuous)
                 .fill(BetweenUsTheme.brandBlue.opacity(0.07))
@@ -84,7 +85,7 @@ struct BetweenUsCardModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(BetweenUsTheme.outline, lineWidth: 1)
             )
-            .shadow(color: BetweenUsTheme.shadow, radius: 18, x: 0, y: 12)
+            .shadow(color: BetweenUsTheme.shadow, radius: 20, x: 0, y: 10)
     }
 }
 
@@ -106,13 +107,61 @@ struct BetweenUsPrimaryButtonStyle: ButtonStyle {
                     )
             )
             .shadow(
-                color: (isDanger ? Color.red.opacity(0.18) : BetweenUsTheme.brandPink.opacity(0.26)),
+                color: (isDanger ? Color.red.opacity(0.18) : BetweenUsTheme.brandBlue.opacity(0.22)),
                 radius: configuration.isPressed ? 8 : 16,
                 x: 0,
                 y: configuration.isPressed ? 4 : 10
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+struct BetweenUsSmoothProgressBar: View {
+    let progress: Double
+    @State private var glowPosition: CGFloat = -0.4
+
+    var body: some View {
+        GeometryReader { geo in
+            let clamped = min(max(progress, 0), 1)
+            let width = max(geo.size.width * clamped, 0)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.black.opacity(0.08))
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [BetweenUsTheme.brandTeal, BetweenUsTheme.brandBlue],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: width)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0), Color.white.opacity(0.32), Color.white.opacity(0)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: max(width * 0.35, 28))
+                            .offset(x: max(width - max(width * 0.35, 28), 0) * glowPosition)
+                            .opacity(width > 18 ? 1 : 0)
+                    }
+                    .animation(.interactiveSpring(response: 0.45, dampingFraction: 0.88), value: width)
+            }
+            .clipShape(Capsule())
+            .onAppear {
+                withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                    glowPosition = 1.2
+                }
+            }
+        }
+        .frame(height: 10)
     }
 }
 

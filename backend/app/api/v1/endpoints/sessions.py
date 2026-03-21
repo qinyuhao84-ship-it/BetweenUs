@@ -11,6 +11,7 @@ from app.schemas.session import (
     FinishSessionResponse,
     SessionDetailResponse,
     SessionResponse,
+    UpdateSessionTitleRequest,
     UploadSessionAudioResponse,
 )
 from app.services.container import audio_storage_service, billing_service, progress_service, session_service
@@ -32,7 +33,12 @@ def _run_pipeline_in_background(session_id: str) -> None:
 def create_session(payload: CreateSessionRequest, user_id: str = Depends(get_current_user_id)) -> SessionResponse:
     record = session_service.create_session(user_id=user_id, title=payload.title)
     billing_service.get_or_create(user_id)
-    return SessionResponse(session_id=record.session_id, status=record.status, created_at=record.created_at)
+    return SessionResponse(
+        session_id=record.session_id,
+        title=record.title,
+        status=record.status,
+        created_at=record.created_at,
+    )
 
 
 @router.post("/{session_id}/finish", response_model=FinishSessionResponse)
@@ -124,9 +130,43 @@ async def upload_session_audio(
 def list_sessions(user_id: str = Depends(get_current_user_id)) -> list[SessionResponse]:
     items = session_service.list_by_user(user_id)
     return [
-        SessionResponse(session_id=item.session_id, status=item.status, created_at=item.created_at)
+        SessionResponse(session_id=item.session_id, title=item.title, status=item.status, created_at=item.created_at)
         for item in sorted(items, key=lambda x: x.created_at, reverse=True)
     ]
+
+
+@router.patch("/{session_id}/title", response_model=SessionDetailResponse)
+def update_session_title(
+    session_id: str,
+    payload: UpdateSessionTitleRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> SessionDetailResponse:
+    try:
+        record = session_service.get_session(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="会话不存在") from exc
+
+    if record.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该会话")
+
+    try:
+        updated = session_service.update_title(session_id, payload.title)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    transcript_excerpt = updated.transcript_text.strip()
+    if len(transcript_excerpt) > 280:
+        transcript_excerpt = transcript_excerpt[:280] + "..."
+
+    return SessionDetailResponse(
+        session_id=updated.session_id,
+        title=updated.title,
+        status=updated.status,
+        created_at=updated.created_at,
+        duration_minutes=updated.duration_minutes,
+        failure_reason=updated.failure_reason,
+        transcript_excerpt=transcript_excerpt,
+    )
 
 
 @router.get("/{session_id}/progress", response_model=ProgressSnapshot)
