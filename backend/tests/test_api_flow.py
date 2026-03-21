@@ -153,6 +153,39 @@ def test_session_report_and_billing_flow():
     assert duplicate.json()["applied"] is False
     assert duplicate.json()["entitlement"]["payg_units_left"] == 3
 
+    packages = client.get("/v1/billing/packages", headers=headers)
+    assert packages.status_code == 200
+    assert len(packages.json()) >= 1
+
+    first_package = packages.json()[0]
+    create_order = client.post(
+        "/v1/billing/payments/create",
+        headers=headers,
+        json={"package_id": first_package["package_id"], "channel": "alipay"},
+    )
+    assert create_order.status_code == 200
+    order_payload = create_order.json()
+    assert order_payload["order_no"].startswith("bu_")
+    assert order_payload["status"] == "pending"
+
+    confirm = client.post(
+        "/v1/billing/payments/confirm",
+        headers=headers,
+        json={"order_no": order_payload["order_no"], "provider_order_id": "mock_provider_1"},
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["applied"] is True
+    assert confirm.json()["entitlement"]["payg_units_left"] == 3 + first_package["units"]
+
+    duplicate_confirm = client.post(
+        "/v1/billing/payments/confirm",
+        headers=headers,
+        json={"order_no": order_payload["order_no"], "provider_order_id": "mock_provider_1"},
+    )
+    assert duplicate_confirm.status_code == 200
+    assert duplicate_confirm.json()["applied"] is False
+    assert duplicate_confirm.json()["entitlement"]["payg_units_left"] == 3 + first_package["units"]
+
 
 def test_session_requires_header():
     response = client.post("/v1/sessions", json={"title": "x"})

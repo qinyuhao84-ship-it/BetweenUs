@@ -13,6 +13,11 @@ final class AppState: ObservableObject {
     @Published var serverBaseURL: String = "http://127.0.0.1:8000"
     @Published var runtimeStatus: RuntimeStatusResponse?
     @Published var runtimeStatusError: String?
+    @Published var entitlements: EntitlementResponse?
+    @Published var topupPackages: [TopupPackageResponse] = []
+    @Published var billingLoading: Bool = false
+    @Published var billingErrorMessage: String?
+    @Published var latestPaymentOrder: CreatePaymentOrderResponse?
     @Published var sessions: [SessionSummary] = []
     @Published var reports: [String: ConflictReport] = [:]
     @Published var historyLoading: Bool = false
@@ -85,6 +90,7 @@ final class AppState: ObservableObject {
             persistAuthState()
             await refreshProfile()
             await refreshRuntimeStatus()
+            await refreshEntitlements()
             return true
         } catch {
             authErrorMessage = error.localizedDescription
@@ -173,6 +179,7 @@ final class AppState: ObservableObject {
             persistAuthState()
             await refreshProfile()
             await refreshRuntimeStatus()
+            await refreshEntitlements()
             return true
         } catch {
             authErrorMessage = error.localizedDescription
@@ -193,10 +200,109 @@ final class AppState: ObservableObject {
         nickname = ""
         loginDebugCode = nil
         authErrorMessage = nil
+        entitlements = nil
+        topupPackages = []
+        billingErrorMessage = nil
+        latestPaymentOrder = nil
         sessions = []
         reports = [:]
         historyErrorMessage = nil
         removeStoredAuthState()
+    }
+
+    func refreshEntitlements() async {
+        guard isLoggedIn else {
+            entitlements = nil
+            return
+        }
+        guard let baseURL = URL(string: serverBaseURL) else {
+            billingErrorMessage = "服务地址无效"
+            return
+        }
+        do {
+            let client = APIClient(baseURL: baseURL)
+            entitlements = try await client.fetchEntitlements(accessToken: accessToken)
+            billingErrorMessage = nil
+        } catch {
+            billingErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshTopupPackages() async {
+        guard isLoggedIn else {
+            topupPackages = []
+            return
+        }
+        guard let baseURL = URL(string: serverBaseURL) else {
+            billingErrorMessage = "服务地址无效"
+            return
+        }
+        do {
+            let client = APIClient(baseURL: baseURL)
+            topupPackages = try await client.listTopupPackages(accessToken: accessToken)
+            billingErrorMessage = nil
+        } catch {
+            billingErrorMessage = error.localizedDescription
+        }
+    }
+
+    func createTopupOrder(packageID: String, channel: String) async -> CreatePaymentOrderResponse? {
+        guard isLoggedIn else {
+            billingErrorMessage = "请先登录"
+            return nil
+        }
+        guard let baseURL = URL(string: serverBaseURL) else {
+            billingErrorMessage = "服务地址无效"
+            return nil
+        }
+
+        billingLoading = true
+        billingErrorMessage = nil
+        defer { billingLoading = false }
+
+        do {
+            let client = APIClient(baseURL: baseURL)
+            let order = try await client.createPaymentOrder(
+                packageID: packageID,
+                channel: channel,
+                accessToken: accessToken
+            )
+            latestPaymentOrder = order
+            return order
+        } catch {
+            billingErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func confirmTopupOrder(orderNo: String, providerOrderID: String = "") async -> Bool {
+        guard isLoggedIn else {
+            billingErrorMessage = "请先登录"
+            return false
+        }
+        guard let baseURL = URL(string: serverBaseURL) else {
+            billingErrorMessage = "服务地址无效"
+            return false
+        }
+
+        billingLoading = true
+        billingErrorMessage = nil
+        defer { billingLoading = false }
+
+        do {
+            let client = APIClient(baseURL: baseURL)
+            let response = try await client.confirmPaymentOrder(
+                orderNo: orderNo,
+                providerOrderID: providerOrderID,
+                accessToken: accessToken
+            )
+            entitlements = response.entitlement
+            latestPaymentOrder = nil
+            return response.success
+        } catch {
+            billingErrorMessage = error.localizedDescription
+            return false
+        }
     }
 
     func requireAccessToken() throws -> String {

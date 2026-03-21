@@ -28,6 +28,10 @@ uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info
 - `LLM_API_KEY`：复盘生成服务密钥（默认兼容 DeepSeek）
 - `CELERY_BROKER_URL`：异步任务队列地址（默认 Redis）
 - `AI_PROVIDER_MODE`：`auto`（默认）有密钥走真实链路，无密钥走 mock；也可强制 `real` 或 `mock`
+- `PAYMENT_MODE`：`mock`（开发联调）或 `real`（生产必须）
+- `ALIPAY_APP_ID` / `ALIPAY_PRIVATE_KEY` / `ALIPAY_PUBLIC_KEY`：支付宝参数
+- `WECHAT_MCH_ID` / `WECHAT_API_V3_KEY` / `WECHAT_SERIAL_NO` / `WECHAT_PRIVATE_KEY`：微信支付参数
+- `WECHAT_NOTIFY_URL`：微信支付回调地址（生产需公网可访问）
 
 ## 当前能力
 
@@ -40,4 +44,5 @@ uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info
 - AI 运行状态查询（`GET /v1/system/runtime-status`）
 - 订阅额度与按次额度结算（数据库持久化）
 - IAP 幂等防重（数据库持久化）
+- 套餐查询与充值订单（`/v1/billing/packages`、`/v1/billing/payments/create`、`/v1/billing/payments/confirm`）
 - Bearer Token 鉴权（JWT）

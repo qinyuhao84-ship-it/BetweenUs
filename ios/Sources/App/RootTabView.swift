@@ -15,7 +15,7 @@ struct RootTabView: View {
                 TabView(selection: $selectedTab) {
                     NavigationStack {
                         RecordView()
-                            .navigationTitle("冲突复盘")
+                            .navigationTitle("BetweenUs")
                     }
                     .tabItem {
                         Label("复盘", systemImage: "waveform.circle")

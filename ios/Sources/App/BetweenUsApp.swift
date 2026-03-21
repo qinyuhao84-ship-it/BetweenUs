@@ -18,6 +18,7 @@ struct BetweenUsApp: App {
                     await appState.refreshRuntimeStatus()
                     if appState.isLoggedIn {
                         await appState.refreshProfile()
+                        await appState.refreshEntitlements()
                     }
                 }
         }

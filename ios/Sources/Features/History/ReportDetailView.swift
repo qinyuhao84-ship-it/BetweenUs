@@ -12,18 +12,19 @@ struct ReportDetailView: View {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         summaryCard
                             .id("summary")
-                        if !report.transcriptExcerpt.isEmpty {
-                            section(title: "对话摘录（用于核对）", icon: "waveform", lines: [report.transcriptExcerpt], selectable: true)
-                                .id("transcript")
-                        }
                         section(title: "双方的深层诉求", icon: "sparkles", lines: report.potentialNeeds)
                             .id("needs")
                         section(title: "修复建议", icon: "wand.and.stars", lines: report.repairSuggestions)
                             .id("suggestions")
                         section(title: "本次行动清单", icon: "checklist", lines: report.actionTasks.map(\.content))
                             .id("actions")
+                        if !report.transcriptExcerpt.isEmpty {
+                            section(title: "对话摘录（用于核对）", icon: "waveform", lines: [report.transcriptExcerpt], selectable: true)
+                                .id("transcript")
+                        }
                     }
                     .padding(20)
+                    .padding(.bottom, 120)
                 }
                 .scrollIndicators(.visible)
                 .scrollBounceBehavior(.basedOnSize)

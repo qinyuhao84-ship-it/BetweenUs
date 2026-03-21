@@ -1,21 +1,21 @@
 import SwiftUI
 
 enum BetweenUsTheme {
-    static let pageTop = Color(hex: 0xF9F8F5)
-    static let pageMid = Color(hex: 0xECF3FF)
-    static let pageBottom = Color(hex: 0xFFF5EC)
+    static let pageTop = Color(hex: 0xF6FFFC)
+    static let pageMid = Color(hex: 0xEEF8FF)
+    static let pageBottom = Color(hex: 0xF3F8FF)
 
-    static let brandBlue = Color(hex: 0x2563EB)
-    static let brandBlueSoft = Color(hex: 0x7AA2FF)
-    static let brandPink = Color(hex: 0xF97316)
-    static let brandPinkSoft = Color(hex: 0xFED7AA)
-    static let brandCta = Color(hex: 0xF97316)
-    static let brandTeal = Color(hex: 0x14B8A6)
+    static let brandBlue = Color(hex: 0x3B82F6)
+    static let brandBlueSoft = Color(hex: 0x93C5FD)
+    static let brandPink = Color(hex: 0x2DD4BF)
+    static let brandPinkSoft = Color(hex: 0xCCFBF1)
+    static let brandCta = Color(hex: 0x34D399)
+    static let brandTeal = Color(hex: 0x0EA5E9)
 
     static let textPrimary = Color(hex: 0x0F172A)
     static let textSecondary = Color(hex: 0x334155)
     static let textTertiary = Color(hex: 0x64748B)
-    static let card = Color.white.opacity(0.9)
+    static let card = Color.white.opacity(0.92)
     static let cardStrong = Color.white.opacity(0.98)
     static let outline = Color.white.opacity(0.72)
     static let shadow = Color(hex: 0x0F172A, opacity: 0.1)
@@ -49,13 +49,13 @@ struct BetweenUsGradientBackground: View {
                 .fill(BetweenUsTheme.brandPinkSoft.opacity(0.44))
                 .frame(width: 340, height: 340)
                 .offset(x: 170, y: -280)
-                .blur(radius: 14)
+                .blur(radius: 18)
 
             Circle()
                 .fill(BetweenUsTheme.brandBlueSoft.opacity(0.36))
                 .frame(width: 320, height: 320)
                 .offset(x: -170, y: -250)
-                .blur(radius: 14)
+                .blur(radius: 18)
 
             RoundedRectangle(cornerRadius: 42, style: .continuous)
                 .fill(BetweenUsTheme.brandBlue.opacity(0.07))
@@ -128,12 +128,12 @@ struct BetweenUsSmoothProgressBar: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.black.opacity(0.08))
+                    .fill(Color.black.opacity(0.06))
 
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [BetweenUsTheme.brandTeal, BetweenUsTheme.brandBlue],
+                            colors: [BetweenUsTheme.brandCta, BetweenUsTheme.brandBlue],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -152,6 +152,7 @@ struct BetweenUsSmoothProgressBar: View {
                             .offset(x: max(width - max(width * 0.35, 28), 0) * glowPosition)
                             .opacity(width > 18 ? 1 : 0)
                     }
+                    .shadow(color: BetweenUsTheme.brandBlue.opacity(0.2), radius: 6, x: 0, y: 2)
                     .animation(.interactiveSpring(response: 0.45, dampingFraction: 0.88), value: width)
             }
             .clipShape(Capsule())

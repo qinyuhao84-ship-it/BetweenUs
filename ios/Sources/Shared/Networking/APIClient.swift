@@ -230,6 +230,60 @@ struct APIClient {
         )
     }
 
+    func fetchEntitlements(accessToken: String) async throws -> EntitlementResponse {
+        try await request(
+            path: "/v1/billing/entitlements",
+            method: "GET",
+            userID: "",
+            accessToken: accessToken,
+            body: Optional<Data>.none,
+            response: EntitlementResponse.self
+        )
+    }
+
+    func listTopupPackages(accessToken: String) async throws -> [TopupPackageResponse] {
+        try await request(
+            path: "/v1/billing/packages",
+            method: "GET",
+            userID: "",
+            accessToken: accessToken,
+            body: Optional<Data>.none,
+            response: [TopupPackageResponse].self
+        )
+    }
+
+    func createPaymentOrder(
+        packageID: String,
+        channel: String,
+        accessToken: String
+    ) async throws -> CreatePaymentOrderResponse {
+        let body = CreatePaymentOrderRequest(package_id: packageID, channel: channel)
+        return try await request(
+            path: "/v1/billing/payments/create",
+            method: "POST",
+            userID: "",
+            accessToken: accessToken,
+            body: body,
+            response: CreatePaymentOrderResponse.self
+        )
+    }
+
+    func confirmPaymentOrder(
+        orderNo: String,
+        providerOrderID: String,
+        accessToken: String
+    ) async throws -> ConfirmPaymentResponse {
+        let body = ConfirmPaymentRequest(order_no: orderNo, provider_order_id: providerOrderID)
+        return try await request(
+            path: "/v1/billing/payments/confirm",
+            method: "POST",
+            userID: "",
+            accessToken: accessToken,
+            body: body,
+            response: ConfirmPaymentResponse.self
+        )
+    }
+
     private func request<T: Decodable, B: Encodable>(
         path: String,
         method: String,

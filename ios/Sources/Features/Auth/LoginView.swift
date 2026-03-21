@@ -11,52 +11,44 @@ struct LoginView: View {
             BetweenUsGradientBackground()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("BetweenUs")
                             .betweenUsDisplayTitle()
-                        Text("把“谁对谁错”改成“我们如何更好地理解彼此”。")
+                        Text("把争执变成可修复的理解。")
                             .betweenUsBodyMuted()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 30)
-
-                    VStack(spacing: 10) {
-                        valueRow(icon: "heart.text.square.fill", text: "不判输赢，只找真正诉求")
-                        valueRow(icon: "waveform.path.ecg", text: "真实录音转写，过程可核对")
-                        valueRow(icon: "hands.sparkles.fill", text: "给出可执行的修复行动")
-                    }
-                    .betweenUsCardStyle()
+                    .padding(.top, 36)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("手机号")
-                            .font(.headline)
+                        Text("手机号登录")
+                            .font(.title3.weight(.semibold))
                             .foregroundStyle(BetweenUsTheme.textPrimary)
-                        TextField("请输入 11 位手机号", text: $phone)
-                            .keyboardType(.numberPad)
-                            .textContentType(.telephoneNumber)
-                            .textInputAutocapitalization(.never)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("login.phoneField")
-                            .onChange(of: phone) { _, newValue in
-                                phone = sanitizePhone(newValue)
+
+                        inputBlock(
+                            title: "手机号",
+                            placeholder: "请输入 11 位手机号",
+                            icon: "iphone",
+                            text: $phone
+                        )
+                        .accessibilityIdentifier("login.phoneField")
+                        .onChange(of: phone) { _, newValue in
+                            phone = sanitizePhone(newValue)
+                        }
+
+                        HStack(alignment: .bottom, spacing: 10) {
+                            inputBlock(
+                                title: "验证码",
+                                placeholder: "请输入验证码",
+                                icon: "number",
+                                text: $code
+                            )
+                            .accessibilityIdentifier("login.codeField")
+                            .onChange(of: code) { _, newValue in
+                                code = sanitizeCode(newValue)
                             }
 
-                        Text("验证码")
-                            .font(.headline)
-                            .foregroundStyle(BetweenUsTheme.textPrimary)
-                        HStack(spacing: 8) {
-                            TextField("请输入验证码", text: $code)
-                                .keyboardType(.numberPad)
-                                .textContentType(.oneTimeCode)
-                                .textInputAutocapitalization(.never)
-                                .textFieldStyle(.roundedBorder)
-                                .accessibilityIdentifier("login.codeField")
-                                .onChange(of: code) { _, newValue in
-                                    code = sanitizeCode(newValue)
-                                }
-
-                            Button(cooldownSeconds > 0 ? "\(cooldownSeconds)s" : "获取验证码") {
+                            Button(cooldownSeconds > 0 ? "\(cooldownSeconds)s" : "获取") {
                                 Task {
                                     if let retryAfter = await appState.requestSMSCode(phone: phone) {
                                         cooldownSeconds = retryAfter
@@ -64,23 +56,15 @@ struct LoginView: View {
                                 }
                             }
                             .buttonStyle(BetweenUsPrimaryButtonStyle())
-                            .frame(width: 120)
-                            .accessibilityIdentifier("login.sendCodeButton")
+                            .frame(width: 90)
                             .disabled(!isPhoneStrictlyValid || cooldownSeconds > 0 || appState.authLoading)
-                        }
-
-                        if let devCode = appState.loginDebugCode {
-                            Text("开发环境验证码：\(devCode)")
-                                .font(.footnote.monospacedDigit())
-                                .foregroundStyle(BetweenUsTheme.brandBlue)
-                                .textSelection(.enabled)
-                                .accessibilityIdentifier("login.devCodeText")
+                            .accessibilityIdentifier("login.sendCodeButton")
                         }
 
                         if !phone.isEmpty && !isPhoneStrictlyValid {
-                            Text("手机号格式不正确，请输入以 1 开头的 11 位手机号。")
+                            Text("请输入以 1 开头的 11 位手机号。")
                                 .font(.footnote)
-                                .foregroundStyle(Color.red)
+                                .foregroundStyle(.red)
                         }
 
                         Button("登录") {
@@ -89,17 +73,27 @@ struct LoginView: View {
                             }
                         }
                         .buttonStyle(BetweenUsPrimaryButtonStyle())
-                        .accessibilityIdentifier("login.submitButton")
                         .disabled(!isPhoneStrictlyValid || code.count < 4 || appState.authLoading)
+                        .accessibilityIdentifier("login.submitButton")
+
+                        Text("登录即表示你同意《用户协议》与《隐私政策》。")
+                            .font(.footnote)
+                            .foregroundStyle(BetweenUsTheme.textTertiary)
 
 #if DEBUG
-                        Button("开发测试：一键登录") {
+                        if let devCode = appState.loginDebugCode {
+                            Text("调试验证码：\(devCode)")
+                                .font(.footnote.monospacedDigit())
+                                .foregroundStyle(BetweenUsTheme.brandBlue)
+                                .textSelection(.enabled)
+                        }
+
+                        Button("调试：一键登录") {
                             Task {
                                 _ = await appState.quickLoginForDebug()
                             }
                         }
                         .buttonStyle(BetweenUsPrimaryButtonStyle())
-                        .accessibilityIdentifier("login.debugQuickLoginButton")
                         .disabled(appState.authLoading)
 #endif
                     }
@@ -108,31 +102,60 @@ struct LoginView: View {
                     if let authError = appState.authErrorMessage {
                         Text(authError)
                             .font(.footnote)
-                            .foregroundStyle(Color.red)
+                            .foregroundStyle(.red)
                             .textSelection(.enabled)
                             .betweenUsCardStyle()
                     }
 
+#if DEBUG
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("服务地址")
+                        Text("调试配置")
                             .font(.headline)
                             .foregroundStyle(BetweenUsTheme.textPrimary)
                         TextField("http://127.0.0.1:8000", text: $appState.serverBaseURL)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("login.serverField")
                             .onSubmit {
                                 appState.persistServerBaseURL()
                             }
                     }
                     .betweenUsCardStyle()
+#endif
                 }
                 .padding(20)
             }
         }
         .task {
             await startCooldownTimer()
+        }
+    }
+
+    private func inputBlock(title: String, placeholder: String, icon: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(BetweenUsTheme.textSecondary)
+
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundStyle(BetweenUsTheme.brandBlue)
+                    .frame(width: 18)
+                TextField(placeholder, text: text)
+                    .keyboardType(title == "手机号" ? .numberPad : .numberPad)
+                    .textContentType(title == "手机号" ? .telephoneNumber : .oneTimeCode)
+                    .textInputAutocapitalization(.never)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.86))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(BetweenUsTheme.brandBlue.opacity(0.14), lineWidth: 1)
+            )
         }
     }
 
@@ -161,17 +184,5 @@ struct LoginView: View {
                 break
             }
         }
-    }
-
-    @ViewBuilder
-    private func valueRow(icon: String, text: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .foregroundStyle(BetweenUsTheme.brandBlue)
-            Text(text)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

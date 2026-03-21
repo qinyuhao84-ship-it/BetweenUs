@@ -51,6 +51,22 @@ class IAPTransactionModel(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class PaymentOrderModel(SQLModel, table=True):
+    __tablename__ = "payment_orders"
+
+    order_no: str = Field(primary_key=True, index=True)
+    user_id: str = Field(index=True)
+    package_id: str = Field(index=True)
+    channel: str = Field(index=True)
+    units: int = Field(default=0)
+    amount_cny: int = Field(default=0)
+    status: str = Field(default="pending", index=True)
+    provider_order_id: str = Field(default="")
+    payment_payload: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 class ProgressModel(SQLModel, table=True):
     __tablename__ = "progress_points"
 

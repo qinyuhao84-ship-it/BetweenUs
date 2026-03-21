@@ -14,6 +14,7 @@
 		3C69F2A5FE41F32269FA0390 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D06C1851FF8E6B142D727DF /* AppState.swift */; };
 		3DADDF5BF0746EA2BA799BCE /* UsageUnitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049B177E8C7F1E776D09DDA4 /* UsageUnitPolicy.swift */; };
 		470DB0E6E0B52453F54A16A9 /* AuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BB5D2BA05518120E45C4BA /* AuthModels.swift */; };
+		56521ACA5AD7D4BF8258C8B0 /* RechargeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27F67CA9E24C0AFE9876593 /* RechargeView.swift */; };
 		667E2A45BF233255B65BEC1B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3694436B8965B3316BCF52 /* LoginView.swift */; };
 		7052626F3D424383F60114F9 /* RecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E41BF1F0A479498219A64C /* RecorderService.swift */; };
 		72BB407BE86B15EABA3FDAEB /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5FB376E43A418473899761 /* ReportDetailView.swift */; };
@@ -23,6 +24,7 @@
 		AD1EACF3BF946580F573A9C9 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B24ABE5EC99C67111BECAAD /* SessionModels.swift */; };
 		BE8C653AA0C88BFC8530BA87 /* BetweenUsTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C0345641A317F955561A33 /* BetweenUsTheme.swift */; };
 		BFE2AAC04F461BE8F96C30E9 /* BetweenUsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2A7A2D59154159E2FC1F34 /* BetweenUsApp.swift */; };
+		C5B453B753A6EE28846F6C39 /* BillingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97048E092CECA57D806825C7 /* BillingModels.swift */; };
 		D2EDE04079DB325037CC8A64 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76797B60CFB2681D14D0672 /* APIClient.swift */; };
 		DD93F327063F090E5201BDDF /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7FD8AE3F3FC2ABCDBACBA5 /* RootTabView.swift */; };
 		DEC4436175E7C24FF3AFCF03 /* RecordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1292902222F510DE7B3852 /* RecordViewModel.swift */; };
@@ -54,11 +56,13 @@
 		778B58CB3ED87523E0509BDA /* sample_conflict.m4a */ = {isa = PBXFileReference; path = sample_conflict.m4a; sourceTree = "<group>"; };
 		84C0345641A317F955561A33 /* BetweenUsTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetweenUsTheme.swift; sourceTree = "<group>"; };
 		8B24ABE5EC99C67111BECAAD /* SessionModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModels.swift; sourceTree = "<group>"; };
+		97048E092CECA57D806825C7 /* BillingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingModels.swift; sourceTree = "<group>"; };
 		9A1292902222F510DE7B3852 /* RecordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordViewModel.swift; sourceTree = "<group>"; };
 		B3F7D458B7AB288D7A3D257F /* SystemModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemModels.swift; sourceTree = "<group>"; };
 		B76797B60CFB2681D14D0672 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		BB2A7A2D59154159E2FC1F34 /* BetweenUsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetweenUsApp.swift; sourceTree = "<group>"; };
 		CF7FD8AE3F3FC2ABCDBACBA5 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		D27F67CA9E24C0AFE9876593 /* RechargeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RechargeView.swift; sourceTree = "<group>"; };
 		D3BB5D2BA05518120E45C4BA /* AuthModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthModels.swift; sourceTree = "<group>"; };
 		DBBB04685F961E0932093328 /* ReportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportModels.swift; sourceTree = "<group>"; };
 		FCF8C84F5BDAAB9DB8458803 /* BetweenUsTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BetweenUsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,6 +158,7 @@
 			isa = PBXGroup;
 			children = (
 				D3BB5D2BA05518120E45C4BA /* AuthModels.swift */,
+				97048E092CECA57D806825C7 /* BillingModels.swift */,
 				DBBB04685F961E0932093328 /* ReportModels.swift */,
 				8B24ABE5EC99C67111BECAAD /* SessionModels.swift */,
 				B3F7D458B7AB288D7A3D257F /* SystemModels.swift */,
@@ -200,6 +205,7 @@
 		FC9847633166ED8DC5252BDB /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				D27F67CA9E24C0AFE9876593 /* RechargeView.swift */,
 				394020AC2FDC7EF782A21239 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -302,8 +308,10 @@
 				470DB0E6E0B52453F54A16A9 /* AuthModels.swift in Sources */,
 				BFE2AAC04F461BE8F96C30E9 /* BetweenUsApp.swift in Sources */,
 				BE8C653AA0C88BFC8530BA87 /* BetweenUsTheme.swift in Sources */,
+				C5B453B753A6EE28846F6C39 /* BillingModels.swift in Sources */,
 				7C868C07E75FE05CD2F229F3 /* HistoryView.swift in Sources */,
 				667E2A45BF233255B65BEC1B /* LoginView.swift in Sources */,
+				56521ACA5AD7D4BF8258C8B0 /* RechargeView.swift in Sources */,
 				0C04F3C6EBE2CA3DBCAAEEA8 /* RecordView.swift in Sources */,
 				DEC4436175E7C24FF3AFCF03 /* RecordViewModel.swift in Sources */,
 				7052626F3D424383F60114F9 /* RecorderService.swift in Sources */,

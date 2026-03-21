@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     sms_template: str = "【BetweenUs】验证码 {code}，5 分钟内有效。"
     sms_code_expires_seconds: int = 300
     sms_send_interval_seconds: int = 60
+    payment_mode: str = "mock"
+    alipay_gateway_url: str = "https://openapi.alipay.com/gateway.do"
+    alipay_app_id: str = ""
+    alipay_private_key: str = ""
+    alipay_public_key: str = ""
+    wechat_mch_id: str = ""
+    wechat_api_v3_key: str = ""
+    wechat_serial_no: str = ""
+    wechat_private_key: str = ""
+    wechat_notify_url: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -85,6 +95,10 @@ class Settings(BaseSettings):
             raise ValueError("SMS_SEND_INTERVAL_SECONDS 不能小于 30")
         if self.env not in {"dev", "test"} and self.sms_provider == "mock":
             raise ValueError("生产环境不允许 SMS_PROVIDER=mock，请改为 http 并接入真实短信网关")
+        if self.payment_mode not in {"mock", "real"}:
+            raise ValueError("PAYMENT_MODE 只支持 mock / real")
+        if self.env not in {"dev", "test"} and self.payment_mode != "real":
+            raise ValueError("生产环境必须使用 PAYMENT_MODE=real")
         return self
 
 

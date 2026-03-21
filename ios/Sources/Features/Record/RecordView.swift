@@ -62,8 +62,6 @@ struct RecordView: View {
                         .betweenUsCardStyle()
                     }
 
-                    runtimeSection
-
                     if let report = viewModel.latestReport {
                         NavigationLink {
                             ReportDetailView(report: report)
@@ -97,12 +95,12 @@ struct RecordView: View {
             HStack(spacing: 8) {
                 Image(systemName: "heart.text.square.fill")
                     .foregroundStyle(BetweenUsTheme.brandPink)
-                Text("先把彼此听懂，再谈怎么改变")
+                Text("先听懂彼此，再一起变好")
                     .font(.headline)
                     .foregroundStyle(BetweenUsTheme.textPrimary)
             }
 
-            Text("你只需要如实说出当下发生了什么，我们把情绪里的噪音拆开，沉淀成能落地的修复步骤。")
+            Text("你负责真实表达，我们负责把情绪噪音翻译成清晰、温和、可执行的修复步骤。")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(BetweenUsTheme.textSecondary)
                 .lineSpacing(2)
@@ -134,22 +132,6 @@ struct RecordView: View {
 
             BetweenUsSmoothProgressBar(progress: viewModel.progressDisplay)
         }
-        .betweenUsCardStyle()
-    }
-
-    private var runtimeSection: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: appState.runtimeStatus?.isFullyRealPipeline == true ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                .foregroundStyle(
-                    appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
-                )
-            Text(appState.runtimeStatusMessage)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(
-                    appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandBlue : Color.orange
-                )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .betweenUsCardStyle()
     }
 

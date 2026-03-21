@@ -9,33 +9,20 @@ struct SettingsView: View {
         ZStack {
             BetweenUsGradientBackground()
 
-            List {
-                Section {
+            ScrollView {
+                VStack(spacing: 14) {
                     profileHeader
+                    accountCard
+                    walletCard
+                    supportCard
                 }
-                .listRowBackground(Color.clear)
-
-                Section("账号管理") {
-                    accountSection
-                }
-
-                Section("AI 服务状态") {
-                    runtimeSection
-                }
-
-                Section("连接与同步") {
-                    serviceSection
-                }
-
-                Section("计费与说明") {
-                    billingSection
-                }
+                .padding(20)
+                .padding(.bottom, 110)
             }
-            .scrollContentBackground(.hidden)
-            .listStyle(.insetGrouped)
         }
         .task {
             pendingNickname = appState.nickname
+            await appState.refreshEntitlements()
         }
     }
 
@@ -49,7 +36,7 @@ struct SettingsView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 52, height: 52)
+                .frame(width: 56, height: 56)
                 .overlay {
                     Text(profileInitial)
                         .font(.title3.weight(.bold))
@@ -60,52 +47,52 @@ struct SettingsView: View {
                 Text(appState.isLoggedIn ? (appState.nickname.isEmpty ? "未设置昵称" : appState.nickname) : "未登录")
                     .font(.headline)
                     .foregroundStyle(BetweenUsTheme.textPrimary)
-                Text(appState.phoneMasked.isEmpty ? "登录后可管理你的账号信息" : appState.phoneMasked)
+                Text(appState.phoneMasked.isEmpty ? "登录后可管理账号信息" : appState.phoneMasked)
                     .font(.footnote)
                     .foregroundStyle(BetweenUsTheme.textSecondary)
-                Text("账号中心")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(BetweenUsTheme.brandBlue)
             }
+
             Spacer()
         }
         .betweenUsCardStyle()
     }
 
-    private var accountSection: some View {
-        Group {
+    private var accountCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("账号管理")
+                .font(.headline)
+                .foregroundStyle(BetweenUsTheme.textPrimary)
+
             if appState.isLoggedIn {
-                VStack(alignment: .leading, spacing: 14) {
-                    settingRow(label: "手机号", value: appState.phoneMasked.isEmpty ? appState.phoneNumber : appState.phoneMasked)
-                    settingRow(label: "账号 ID", value: appState.currentUserId)
-                    settingRow(label: "当前昵称", value: appState.nickname.isEmpty ? "未设置" : appState.nickname)
+                settingRow(label: "手机号", value: appState.phoneMasked.isEmpty ? appState.phoneNumber : appState.phoneMasked)
+                settingRow(label: "账号 ID", value: appState.currentUserId)
+                settingRow(label: "当前昵称", value: appState.nickname.isEmpty ? "未设置" : appState.nickname)
 
-                    TextField("设置昵称", text: $pendingNickname)
-                        .textFieldStyle(.roundedBorder)
+                TextField("设置昵称", text: $pendingNickname)
+                    .textFieldStyle(.roundedBorder)
 
-                    Button {
-                        profileSaving = true
-                        Task {
-                            defer { profileSaving = false }
-                            _ = await appState.updateNickname(pendingNickname)
-                        }
-                    } label: {
-                        if profileSaving {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            Text("保存昵称")
-                                .frame(maxWidth: .infinity)
-                        }
+                Button {
+                    profileSaving = true
+                    Task {
+                        defer { profileSaving = false }
+                        _ = await appState.updateNickname(pendingNickname)
                     }
-                    .buttonStyle(BetweenUsPrimaryButtonStyle())
-                    .disabled(profileSaving)
-
-                    Button("退出登录") {
-                        appState.logout()
+                } label: {
+                    if profileSaving {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("保存昵称")
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: true))
                 }
+                .buttonStyle(BetweenUsPrimaryButtonStyle())
+                .disabled(profileSaving)
+
+                Button("退出登录") {
+                    appState.logout()
+                }
+                .buttonStyle(BetweenUsPrimaryButtonStyle(isDanger: true))
             } else {
                 Text("未登录。请先返回登录页完成手机号验证。")
                     .font(.footnote)
@@ -119,71 +106,59 @@ struct SettingsView: View {
                     .textSelection(.enabled)
             }
         }
+        .betweenUsCardStyle()
     }
 
-    private var runtimeSection: some View {
+    private var walletCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandTeal : Color.orange)
-                    .frame(width: 10, height: 10)
-                Text(appState.runtimeStatusMessage)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(
-                        appState.runtimeStatus?.isFullyRealPipeline == true ? BetweenUsTheme.brandTeal : Color.orange
-                    )
-            }
+            Text("充值与套餐")
+                .font(.headline)
+                .foregroundStyle(BetweenUsTheme.textPrimary)
 
-            if let runtime = appState.runtimeStatus {
-                settingRow(label: "ASR 提供方", value: runtime.asr_provider)
-                settingRow(label: "ASR Mock", value: runtime.asr_mock_enabled ? "开启" : "关闭")
-                settingRow(label: "LLM Mock", value: runtime.llm_mock_enabled ? "开启" : "关闭")
-                settingRow(label: "队列 Eager", value: runtime.queue_eager_mode ? "开启" : "关闭")
-            }
+            settingRow(label: "订阅额度", value: "\(appState.entitlements?.subscription_units_left ?? 0) 单位")
+            settingRow(label: "余额额度", value: "\(appState.entitlements?.payg_units_left ?? 0) 单位")
 
-            Button("刷新运行状态") {
-                Task {
-                    await appState.refreshRuntimeStatus()
+            NavigationLink {
+                RechargeView()
+            } label: {
+                HStack {
+                    Text("进入充值中心")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right")
                 }
+                .foregroundStyle(BetweenUsTheme.textPrimary)
             }
-            .buttonStyle(BetweenUsPrimaryButtonStyle())
+            .buttonStyle(.plain)
         }
+        .betweenUsCardStyle()
     }
 
-    private var serviceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("服务地址", text: $appState.serverBaseURL)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit {
-                    appState.persistServerBaseURL()
-                }
-
-            Text("示例：http://127.0.0.1:8000")
+    private var supportCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("帮助与反馈")
+                .font(.headline)
+                .foregroundStyle(BetweenUsTheme.textPrimary)
+            Text("如需关闭账号或查询隐私政策，请联系 support@betweenus.app")
                 .font(.footnote)
                 .foregroundStyle(BetweenUsTheme.textSecondary)
 
-            Button("立即同步历史记录") {
-                appState.persistServerBaseURL()
-                Task {
-                    await appState.refreshHistory()
-                    await appState.refreshRuntimeStatus()
-                }
+#if DEBUG
+            VStack(alignment: .leading, spacing: 8) {
+                Text("调试配置")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BetweenUsTheme.textSecondary)
+                TextField("http://127.0.0.1:8000", text: $appState.serverBaseURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        appState.persistServerBaseURL()
+                    }
             }
-            .buttonStyle(BetweenUsPrimaryButtonStyle())
+#endif
         }
-    }
-
-    private var billingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("按每 60 分钟记 1 单位，不足 60 分钟按 1 单位计。")
-                .foregroundStyle(BetweenUsTheme.textSecondary)
-
-            Text("121 分钟会计为 \(UsageUnitPolicy.units(for: 121)) 单位。")
-                .foregroundStyle(BetweenUsTheme.brandBlue)
-                .monospacedDigit()
-        }
+        .betweenUsCardStyle()
     }
 
     private var profileInitial: String {
