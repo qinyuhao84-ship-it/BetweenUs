@@ -64,8 +64,8 @@ def finish_session(
     progress_service.start(session_id)
     try:
         process_session_task.apply_async(args=[session_id], ignore_result=True, retry=False)
-    except Exception:  # noqa: BLE001
-        logger.exception("failed to enqueue pipeline task for session %s", session_id)
+    except Exception as enqueue_exc:  # noqa: BLE001
+        logger.warning("failed to enqueue pipeline task for session %s: %s", session_id, enqueue_exc)
         logger.warning("falling back to inline pipeline execution for session %s", session_id)
         try:
             threading.Thread(
@@ -75,12 +75,12 @@ def finish_session(
                 daemon=True,
             ).start()
         except Exception as fallback_exc:  # noqa: BLE001
-            logger.exception("thread fallback failed for session %s", session_id)
+            logger.warning("thread fallback failed for session %s: %s", session_id, fallback_exc)
             logger.warning("running inline pipeline in request thread for session %s", session_id)
             try:
                 ProcessingPipeline.run_sync(session_id)
             except Exception as inline_exc:  # noqa: BLE001
-                logger.exception("inline fallback pipeline failed for session %s", session_id)
+                logger.warning("inline fallback pipeline failed for session %s: %s", session_id, inline_exc)
                 session_service.fail(session_id, "复盘处理失败，请稍后重试")
                 progress_service.fail(session_id)
                 raise HTTPException(status_code=503, detail="复盘处理失败，请稍后重试") from inline_exc
