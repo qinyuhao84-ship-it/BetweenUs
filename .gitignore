@@ -14,6 +14,7 @@ backend/storage/
 
 # Env
 backend/.env
+deploy/china/.env
 
 # Xcode
 ios/BetweenUs.xcodeproj/project.xcworkspace/xcuserdata/
