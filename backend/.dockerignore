@@ -1,0 +1,12 @@
+.venv
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+.env
+.coverage
+tests
+storage
+betweenus.db
+betweenus_qa.db

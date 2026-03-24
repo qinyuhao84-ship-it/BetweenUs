@@ -1,0 +1,256 @@
+services:
+  - type: keyvalue
+    name: betweenus-redis
+    region: singapore
+    ipAllowList: []
+
+  - type: web
+    runtime: docker
+    name: betweenus-api
+    region: singapore
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: ./docker/start-web.sh
+    healthCheckPath: /readyz
+    autoDeployTrigger: commit
+    envVars:
+      - fromGroup: betweenus-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: betweenus-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: betweenus-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: betweenus-redis
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: ASR_VOLC_APP_ID
+        sync: false
+      - key: ASR_VOLC_ACCESS_TOKEN
+        sync: false
+      - key: VOLC_TOS_ENDPOINT
+        sync: false
+      - key: VOLC_TOS_REGION
+        sync: false
+      - key: VOLC_TOS_BUCKET
+        sync: false
+      - key: VOLC_TOS_ACCESS_KEY_ID
+        sync: false
+      - key: VOLC_TOS_ACCESS_KEY_SECRET
+        sync: false
+      - key: APPLE_CLIENT_ID
+        value: com.betweenus.app
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY
+        sync: false
+      - key: APPLE_IAP_BUNDLE_ID
+        value: com.betweenus.app
+      - key: APPLE_IAP_APP_APPLE_ID
+        sync: false
+      - key: SMS_ALIYUN_ACCESS_KEY_ID
+        sync: false
+      - key: SMS_ALIYUN_ACCESS_KEY_SECRET
+        sync: false
+      - key: SMS_ALIYUN_SIGN_NAME
+        sync: false
+      - key: SMS_ALIYUN_TEMPLATE_CODE
+        sync: false
+      - key: SMS_ALIYUN_SCHEME_NAME
+        sync: false
+
+  - type: worker
+    runtime: docker
+    name: betweenus-worker
+    region: singapore
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: ./docker/start-worker.sh
+    autoDeployTrigger: commit
+    envVars:
+      - fromGroup: betweenus-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: betweenus-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: betweenus-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: betweenus-redis
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: JWT_SECRET_KEY
+      - key: DEEPSEEK_API_KEY
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: DEEPSEEK_API_KEY
+      - key: ASR_VOLC_APP_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: ASR_VOLC_APP_ID
+      - key: ASR_VOLC_ACCESS_TOKEN
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: ASR_VOLC_ACCESS_TOKEN
+      - key: VOLC_TOS_ENDPOINT
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: VOLC_TOS_ENDPOINT
+      - key: VOLC_TOS_REGION
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: VOLC_TOS_REGION
+      - key: VOLC_TOS_BUCKET
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: VOLC_TOS_BUCKET
+      - key: VOLC_TOS_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: VOLC_TOS_ACCESS_KEY_ID
+      - key: VOLC_TOS_ACCESS_KEY_SECRET
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: VOLC_TOS_ACCESS_KEY_SECRET
+      - key: APPLE_CLIENT_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_CLIENT_ID
+      - key: APPLE_TEAM_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_TEAM_ID
+      - key: APPLE_KEY_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_KEY_ID
+      - key: APPLE_PRIVATE_KEY
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_PRIVATE_KEY
+      - key: APPLE_IAP_BUNDLE_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_IAP_BUNDLE_ID
+      - key: APPLE_IAP_APP_APPLE_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: APPLE_IAP_APP_APPLE_ID
+      - key: SMS_ALIYUN_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: SMS_ALIYUN_ACCESS_KEY_ID
+      - key: SMS_ALIYUN_ACCESS_KEY_SECRET
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: SMS_ALIYUN_ACCESS_KEY_SECRET
+      - key: SMS_ALIYUN_SIGN_NAME
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: SMS_ALIYUN_SIGN_NAME
+      - key: SMS_ALIYUN_TEMPLATE_CODE
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: SMS_ALIYUN_TEMPLATE_CODE
+      - key: SMS_ALIYUN_SCHEME_NAME
+        fromService:
+          type: web
+          name: betweenus-api
+          envVarKey: SMS_ALIYUN_SCHEME_NAME
+
+databases:
+  - name: betweenus-db
+    region: singapore
+    plan: basic-256mb
+    databaseName: betweenus
+    user: betweenus
+    ipAllowList: []
+
+envVarGroups:
+  - name: betweenus-shared
+    envVars:
+      - key: ENV
+        value: prod
+      - key: AI_PROVIDER_MODE
+        value: real
+      - key: ASR_PROVIDER
+        value: volc_recording_bigmodel
+      - key: ASR_VOLC_UPLOAD_PROVIDER
+        value: volc_tos
+      - key: ASR_LANGUAGE
+        value: zh
+      - key: ASR_POLL_SECONDS
+        value: '2'
+      - key: ASR_POLL_MAX_ATTEMPTS
+        value: '120'
+      - key: PROVIDER_TIMEOUT_SECONDS
+        value: '60'
+      - key: MAX_AUDIO_FILE_BYTES
+        value: '26214400'
+      - key: RECORDING_STORAGE_DIR
+        value: ./storage/recordings
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: 'false'
+      - key: MAX_PROCESSING_MINUTES
+        value: '10'
+      - key: DEFAULT_SUBSCRIPTION_UNITS
+        value: '6'
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '10080'
+      - key: ALLOW_INSECURE_HEADER_AUTH
+        value: 'false'
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com/v1
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: SMS_PROVIDER
+        value: aliyun
+      - key: APPLE_IAP_ENVIRONMENT
+        value: production
+      - key: APPLE_SIGN_IN_AUDIENCE
+        value: com.betweenus.app
+      - key: APPLE_IAP_ROOT_CA_PATHS
+        value: /app/certs/apple/AppleRootCA-G2.cer,/app/certs/apple/AppleRootCA-G3.cer
+      - key: VOLC_TOS_KEY_PREFIX
+        value: betweenus-audio
+      - key: VOLC_TOS_PRESIGN_EXPIRES_SECONDS
+        value: '900'
