@@ -1,0 +1,13 @@
+{
+  email qinyuhao84@gmail.com
+}
+
+betweenus.app, www.betweenus.app {
+  root * /srv/site
+  file_server
+}
+
+api.betweenus.app {
+  encode gzip zstd
+  reverse_proxy api:10000
+}

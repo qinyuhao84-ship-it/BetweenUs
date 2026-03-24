@@ -29,27 +29,27 @@ enum AppConfig {
 
     static let privacyPolicyURL = configuredHTTPSURL(
         envKey: "BETWEENUS_PRIVACY_POLICY_URL",
-        defaultValue: "https://betweenus-site.vercel.app/legal/privacy/"
+        defaultValue: "https://betweenus.app/legal/privacy/"
     )
 
     static let userAgreementURL = configuredHTTPSURL(
         envKey: "BETWEENUS_USER_AGREEMENT_URL",
-        defaultValue: "https://betweenus-site.vercel.app/legal/terms/"
+        defaultValue: "https://betweenus.app/legal/terms/"
     )
 
     static let privacyChoicesURL = configuredHTTPSURL(
         envKey: "BETWEENUS_PRIVACY_CHOICES_URL",
-        defaultValue: "https://betweenus-site.vercel.app/legal/privacy-choices/"
+        defaultValue: "https://betweenus.app/legal/privacy-choices/"
     )
 
     static let supportURL = configuredHTTPSURL(
         envKey: "BETWEENUS_SUPPORT_URL",
-        defaultValue: "https://betweenus-site.vercel.app/support/"
+        defaultValue: "https://betweenus.app/support/"
     )
 
     static let marketingURL = configuredHTTPSURL(
         envKey: "BETWEENUS_MARKETING_URL",
-        defaultValue: "https://betweenus-site.vercel.app/"
+        defaultValue: "https://betweenus.app/"
     )
 
     static let supportEmail: String = {

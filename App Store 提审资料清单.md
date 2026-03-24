@@ -5,30 +5,47 @@
 
 ## 1. App Store Connect 基础信息
 
-1. App 名称
-2. 副标题
-3. 关键词
-4. 描述
-5. 支持 URL
-6. 营销 URL
-7. 隐私政策 URL
-8. 中国大陆 `ICP Filing Number`
+1. App 名称：`BetweenUs`
+2. Bundle ID：`com.betweenus.app`
+3. SKU：建议填 `betweenus-ios-cn`
+4. 支持 URL：`https://betweenus.app/support/`
+5. 营销 URL：`https://betweenus.app/`
+6. 隐私政策 URL：`https://betweenus.app/legal/privacy/`
+7. 用户协议 URL：`https://betweenus.app/legal/terms/`
+8. 隐私选择 URL：`https://betweenus.app/legal/privacy-choices/`
+9. 客服邮箱：`qinyuhao84@gmail.com`
+10. 中国大陆 `ICP Filing Number`：等备案通过后填写
 
-## 2. 截图与视觉素材
+## 2. 推荐直接填写的商店文案
+
+1. 副标题：`冲突复盘助手`
+2. 关键词：`关系复盘,沟通,冲突分析,录音转写,复盘报告`
+3. 描述：
+   `BetweenUs 帮你在冲突之后快速整理事实、诉求和下一步行动。你可以录下刚刚发生的内容，系统会自动转写并生成一份克制、清楚、可执行的复盘报告。`
+
+## 2.5 当前预览地址
+
+1. 当前已上线预览：`https://betweenus-site.vercel.app/`
+2. 这个地址只用于预览和联调，不作为中国大陆正式发布地址。
+
+## 3. 截图与视觉素材
 
 1. App Icon
 2. iPhone 截图
 3. 如有需要，补充 App Preview 视频
 
-## 3. 审核备注建议
+## 4. 审核备注建议
 
 建议写清楚三件事：
 
 1. 审核员可使用 `Sign in with Apple` 直接进入 App。
 2. 正式用户也支持手机号验证码登录。
 3. App 内数字商品采用 `Apple IAP` 次数包，不使用外部支付。
+4. 法务文档与支持页已上线到：
+   - 预览：`https://betweenus-site.vercel.app/`
+   - 正式：中国大陆发布使用 `https://betweenus.app/`
 
-## 4. App Privacy 需要申报的数据
+## 5. App Privacy 需要申报的数据
 
 至少要覆盖：
 
@@ -39,7 +56,7 @@
 5. 购买信息：Apple 交易信息
 6. 诊断信息：如果你有收集崩溃或故障日志
 
-## 5. 提审前最后确认
+## 6. 提审前最后确认
 
 1. 法律文档链接已经能正常打开。
 2. Release 构建只走 HTTPS。

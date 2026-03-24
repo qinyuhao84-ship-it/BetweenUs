@@ -1,0 +1,128 @@
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../site:/srv/site:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ENV: prod
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
+      AI_PROVIDER_MODE: real
+      ASR_PROVIDER: volc_recording_bigmodel
+      ASR_VOLC_UPLOAD_PROVIDER: volc_tos
+      ASR_LANGUAGE: zh
+      ASR_POLL_SECONDS: "2"
+      ASR_POLL_MAX_ATTEMPTS: "120"
+      PROVIDER_TIMEOUT_SECONDS: "60"
+      MAX_AUDIO_FILE_BYTES: "26214400"
+      RECORDING_STORAGE_DIR: /app/storage/recordings
+      CELERY_TASK_ALWAYS_EAGER: "false"
+      MAX_PROCESSING_MINUTES: "10"
+      DEFAULT_SUBSCRIPTION_UNITS: "6"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
+      ALLOW_INSECURE_HEADER_AUTH: "false"
+      SMS_PROVIDER: aliyun
+      APPLE_IAP_ROOT_CA_PATHS: /app/certs/apple/AppleRootCA-G2.cer,/app/certs/apple/AppleRootCA-G3.cer
+    volumes:
+      - recordings_data:/app/storage/recordings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:10000/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["./docker/start-worker.sh"]
+    env_file:
+      - .env
+    environment:
+      ENV: prod
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
+      AI_PROVIDER_MODE: real
+      ASR_PROVIDER: volc_recording_bigmodel
+      ASR_VOLC_UPLOAD_PROVIDER: volc_tos
+      ASR_LANGUAGE: zh
+      ASR_POLL_SECONDS: "2"
+      ASR_POLL_MAX_ATTEMPTS: "120"
+      PROVIDER_TIMEOUT_SECONDS: "60"
+      MAX_AUDIO_FILE_BYTES: "26214400"
+      RECORDING_STORAGE_DIR: /app/storage/recordings
+      CELERY_TASK_ALWAYS_EAGER: "false"
+      MAX_PROCESSING_MINUTES: "10"
+      DEFAULT_SUBSCRIPTION_UNITS: "6"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
+      ALLOW_INSECURE_HEADER_AUTH: "false"
+      SMS_PROVIDER: aliyun
+      APPLE_IAP_ROOT_CA_PATHS: /app/certs/apple/AppleRootCA-G2.cer,/app/certs/apple/AppleRootCA-G3.cer
+    volumes:
+      - recordings_data:/app/storage/recordings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
+  recordings_data:
