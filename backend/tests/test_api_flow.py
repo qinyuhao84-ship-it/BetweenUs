@@ -1,5 +1,7 @@
-from fastapi.testclient import TestClient
 from time import sleep
+from types import SimpleNamespace
+
+from fastapi.testclient import TestClient
 
 from app.main import app
 
@@ -10,7 +12,7 @@ client = TestClient(app)
 def login_headers(phone: str) -> tuple[dict[str, str], str]:
     send = client.post("/v1/auth/sms/send", json={"phone": phone})
     assert send.status_code == 200
-    code = send.json()["dev_code"]
+    code = "123456"
 
     login = client.post("/v1/auth/sms/login", json={"phone": phone, "code": code})
     assert login.status_code == 200
@@ -24,29 +26,37 @@ def test_healthz():
     assert response.json()["message"] == "ok"
 
 
-def test_runtime_status():
-    response = client.get("/v1/system/runtime-status")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["ai_provider_mode"] in {"auto", "mock", "real"}
-    assert isinstance(payload["asr_mock_enabled"], bool)
-    assert isinstance(payload["llm_mock_enabled"], bool)
-
-
 def test_auth_endpoints():
-    apple = client.post("/v1/auth/apple-login", json={"apple_identity_token": "token-12345678"})
+    from app.services.container import auth_service
+
+    auth_service.verify_apple_identity_token = lambda identity_token: SimpleNamespace(  # type: ignore[method-assign]
+        subject="apple-user-1",
+        email="reviewer@privaterelay.appleid.com",
+        email_verified=True,
+    )
+    auth_service.exchange_apple_authorization_code = lambda authorization_code: SimpleNamespace(  # type: ignore[method-assign]
+        refresh_token="refresh-token-1"
+    )
+    auth_service.revoke_apple_refresh_token = lambda refresh_token: None  # type: ignore[method-assign]
+
+    apple = client.post(
+        "/v1/auth/apple-login",
+        json={
+            "apple_identity_token": "token-12345678",
+            "authorization_code": "auth-code-12345678",
+            "full_name": "App Review",
+        },
+    )
     assert apple.status_code == 200
-    assert apple.json()["user_id"].startswith("u_")
-    assert apple.json()["token_type"] == "Bearer"
-    assert apple.json()["expires_in_minutes"] > 0
-    assert apple.json()["access_token"]
+    assert apple.json()["phone"] is None
+    assert apple.json()["phone_masked"] is None
+    assert apple.json()["has_bound_phone"] is False
 
     send = client.post("/v1/auth/sms/send", json={"phone": "13800138000"})
     assert send.status_code == 200
     assert send.json()["sent"] is True
-    assert send.json()["dev_code"]
 
-    login = client.post("/v1/auth/sms/login", json={"phone": "13800138000", "code": send.json()["dev_code"]})
+    login = client.post("/v1/auth/sms/login", json={"phone": "13800138000", "code": "123456"})
     assert login.status_code == 200
     assert login.json()["phone"] == "13800138000"
     assert login.json()["phone_masked"] == "138****8000"
@@ -65,12 +75,51 @@ def test_auth_endpoints():
     assert update.status_code == 200
     assert update.json()["nickname"] == "小Q"
 
-    bind = client.post("/v1/auth/phone-bind", json={"phone": "13800138000", "code": send.json()["dev_code"]})
-    assert bind.status_code == 400
+    bind_send = client.post("/v1/auth/sms/send", json={"phone": "13800138009"})
+    assert bind_send.status_code == 200
+
+    bind = client.post(
+        "/v1/auth/phone-bind",
+        headers={"Authorization": f"Bearer {apple.json()['access_token']}"},
+        json={"phone": "13800138009", "code": "123456"},
+    )
+    assert bind.status_code == 200
+    assert bind.json()["phone"] == "13800138009"
+    assert bind.json()["phone_masked"] == "138****8009"
+    assert bind.json()["has_bound_phone"] is True
+
+    delete_response = client.delete(
+        "/v1/auth/me",
+        headers={"Authorization": f"Bearer {apple.json()['access_token']}"},
+    )
+    assert delete_response.status_code == 200
+    assert delete_response.json()["success"] is True
+    assert delete_response.json()["apple_revoked"] is True
+
+    me_after_delete = client.get("/v1/auth/me", headers={"Authorization": f"Bearer {apple.json()['access_token']}"})
+    assert me_after_delete.status_code == 401
 
 
-def test_session_report_and_billing_flow():
+def test_session_report_and_billing_flow(monkeypatch):
     headers, _user_id = login_headers("13800138001")
+
+    from app.services.container import billing_service
+
+    monkeypatch.setattr(
+        billing_service,
+        "verify_signed_transaction",
+        lambda signed_transaction_info: SimpleNamespace(
+            transaction_id=f"tx-{signed_transaction_info}",
+            original_transaction_id=f"orig-{signed_transaction_info}",
+            product_id="betweenus.payg.3",
+            signed_transaction_info=signed_transaction_info,
+            environment="LocalTesting",
+            purchase_date_ms=1_710_000_000_000,
+            signed_date_ms=1_710_000_000_500,
+            revocation_date_ms=None,
+            revocation_reason=None,
+        ),
+    )
 
     create = client.post("/v1/sessions", headers=headers, json={"title": "今天晚上的争执"})
     assert create.status_code == 200
@@ -120,8 +169,11 @@ def test_session_report_and_billing_flow():
 
     report = client.get(f"/v1/reports/{session_id}", headers=headers)
     assert report.status_code == 200
-    assert len(report.json()["action_tasks"]) == 2
+    assert len(report.json()["action_tasks"]) >= 2
     assert report.json()["transcript_excerpt"]
+    assert report.json()["detailed_report"]
+    assert "【1. 情绪动态与触发点】" in report.json()["detailed_report"]
+    assert "【8." in report.json()["detailed_report"]
 
     detail = client.get(f"/v1/sessions/{session_id}", headers=headers)
     assert detail.status_code == 200
@@ -138,7 +190,7 @@ def test_session_report_and_billing_flow():
     iap = client.post(
         "/v1/billing/iap/verify",
         headers=headers,
-        json={"product_id": "betweenus.payg.3", "transaction_id": "tx-1"},
+        json={"signed_transaction_info": "signed-transaction-1"},
     )
     assert iap.status_code == 200
     assert iap.json()["applied"] is True
@@ -147,7 +199,7 @@ def test_session_report_and_billing_flow():
     duplicate = client.post(
         "/v1/billing/iap/verify",
         headers=headers,
-        json={"product_id": "betweenus.payg.3", "transaction_id": "tx-1"},
+        json={"signed_transaction_info": "signed-transaction-1"},
     )
     assert duplicate.status_code == 200
     assert duplicate.json()["applied"] is False
@@ -156,35 +208,11 @@ def test_session_report_and_billing_flow():
     packages = client.get("/v1/billing/packages", headers=headers)
     assert packages.status_code == 200
     assert len(packages.json()) >= 1
-
-    first_package = packages.json()[0]
-    create_order = client.post(
-        "/v1/billing/payments/create",
-        headers=headers,
-        json={"package_id": first_package["package_id"], "channel": "alipay"},
-    )
-    assert create_order.status_code == 200
-    order_payload = create_order.json()
-    assert order_payload["order_no"].startswith("bu_")
-    assert order_payload["status"] == "pending"
-
-    confirm = client.post(
-        "/v1/billing/payments/confirm",
-        headers=headers,
-        json={"order_no": order_payload["order_no"], "provider_order_id": "mock_provider_1"},
-    )
-    assert confirm.status_code == 200
-    assert confirm.json()["applied"] is True
-    assert confirm.json()["entitlement"]["payg_units_left"] == 3 + first_package["units"]
-
-    duplicate_confirm = client.post(
-        "/v1/billing/payments/confirm",
-        headers=headers,
-        json={"order_no": order_payload["order_no"], "provider_order_id": "mock_provider_1"},
-    )
-    assert duplicate_confirm.status_code == 200
-    assert duplicate_confirm.json()["applied"] is False
-    assert duplicate_confirm.json()["entitlement"]["payg_units_left"] == 3 + first_package["units"]
+    assert {item["package_id"] for item in packages.json()} == {
+        "betweenus.payg.1",
+        "betweenus.payg.2",
+        "betweenus.payg.3",
+    }
 
 
 def test_session_requires_header():
@@ -192,10 +220,10 @@ def test_session_requires_header():
     assert response.status_code == 401
 
 
-def test_finish_falls_back_when_queue_unavailable(monkeypatch):
+def test_finish_fails_fast_when_queue_unavailable(monkeypatch):
     headers, _user_id = login_headers("13800138003")
 
-    create = client.post("/v1/sessions", headers=headers, json={"title": "降级执行"})
+    create = client.post("/v1/sessions", headers=headers, json={"title": "任务队列异常"})
     assert create.status_code == 200
     session_id = create.json()["session_id"]
 
@@ -216,18 +244,78 @@ def test_finish_falls_back_when_queue_unavailable(monkeypatch):
         headers=headers,
         json={"duration_minutes": 15, "consent_acknowledged": True},
     )
-    assert finish.status_code == 200
-    assert finish.json()["status"] == "processing"
+    assert finish.status_code == 503
+    assert "任务系统暂时不可用" in finish.json()["detail"]
 
-    progress = None
-    for _ in range(30):
-        progress = client.get(f"/v1/sessions/{session_id}/progress", headers=headers)
-        assert progress.status_code == 200
-        if progress.json()["stage"] == "completed":
-            break
-        sleep(0.1)
-    assert progress is not None
-    assert progress.json()["stage"] == "completed"
+    progress = client.get(f"/v1/sessions/{session_id}/progress", headers=headers)
+    assert progress.status_code == 200
+    assert progress.json()["stage"] == "failed"
 
     report = client.get(f"/v1/reports/{session_id}", headers=headers)
-    assert report.status_code == 200
+    assert report.status_code == 409
+
+    detail = client.get(f"/v1/sessions/{session_id}", headers=headers)
+    assert detail.status_code == 200
+    assert "任务系统暂时不可用" in detail.json()["failure_reason"]
+
+
+def test_app_store_notification_updates_order(monkeypatch):
+    headers, _user_id = login_headers("13800138004")
+    from app.services.container import billing_service
+
+    transaction_map = {
+        "signed-payload-paid-1": SimpleNamespace(
+            transaction_id="tx-signed-paid",
+            original_transaction_id="orig-signed-paid",
+            product_id="betweenus.payg.2",
+            signed_transaction_info="signed-payload-paid-1",
+            environment="LocalTesting",
+            purchase_date_ms=1_710_000_000_000,
+            signed_date_ms=1_710_000_000_500,
+            revocation_date_ms=None,
+            revocation_reason=None,
+        ),
+        "signed-payload-refund-1": SimpleNamespace(
+            transaction_id="tx-signed-paid",
+            original_transaction_id="orig-signed-paid",
+            product_id="betweenus.payg.2",
+            signed_transaction_info="signed-payload-refund-1",
+            environment="LocalTesting",
+            purchase_date_ms=1_710_000_000_000,
+            signed_date_ms=1_710_000_001_000,
+            revocation_date_ms=1_710_000_100_000,
+            revocation_reason=1,
+        ),
+    }
+
+    monkeypatch.setattr(
+        billing_service,
+        "verify_signed_transaction",
+        lambda signed_transaction_info: transaction_map[signed_transaction_info],
+    )
+    monkeypatch.setattr(
+        billing_service,
+        "verify_and_decode_notification",
+        lambda signed_payload: SimpleNamespace(
+            notification_type="REFUND",
+            subtype="",
+            signed_transaction_info="signed-payload-refund-1",
+        ),
+    )
+
+    verify = client.post(
+        "/v1/billing/iap/verify",
+        headers=headers,
+        json={"signed_transaction_info": "signed-payload-paid-1"},
+    )
+    assert verify.status_code == 200
+    assert verify.json()["entitlement"]["payg_units_left"] == 2
+
+    webhook = client.post("/v1/billing/app-store-notifications", json={"signed_payload": "signed-payload-1"})
+    assert webhook.status_code == 200
+    assert webhook.json()["success"] is True
+    assert webhook.json()["applied"] is True
+
+    entitlement = client.get("/v1/billing/entitlements", headers=headers)
+    assert entitlement.status_code == 200
+    assert entitlement.json()["payg_units_left"] == 0

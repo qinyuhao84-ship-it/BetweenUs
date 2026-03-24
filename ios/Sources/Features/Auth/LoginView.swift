@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -21,6 +22,26 @@ struct LoginView: View {
                     .padding(.top, 36)
 
                     VStack(alignment: .leading, spacing: 12) {
+                        Text("审核与快捷登录")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(BetweenUsTheme.textPrimary)
+
+                        SignInWithAppleButton(.signIn) { request in
+                            request.requestedScopes = [.fullName, .email]
+                        } onCompletion: { result in
+                            handleAppleSignIn(result)
+                        }
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        Text("审核团队可直接使用 Apple 登录；正式用户也可以先登录后再绑定手机号。")
+                            .font(.footnote)
+                            .foregroundStyle(BetweenUsTheme.textSecondary)
+
+                        Divider()
+                            .padding(.vertical, 4)
+
                         Text("手机号登录")
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(BetweenUsTheme.textPrimary)
@@ -76,26 +97,7 @@ struct LoginView: View {
                         .disabled(!isPhoneStrictlyValid || code.count < 4 || appState.authLoading)
                         .accessibilityIdentifier("login.submitButton")
 
-                        Text("登录即表示你同意《用户协议》与《隐私政策》。")
-                            .font(.footnote)
-                            .foregroundStyle(BetweenUsTheme.textTertiary)
-
-#if DEBUG
-                        if let devCode = appState.loginDebugCode {
-                            Text("调试验证码：\(devCode)")
-                                .font(.footnote.monospacedDigit())
-                                .foregroundStyle(BetweenUsTheme.brandBlue)
-                                .textSelection(.enabled)
-                        }
-
-                        Button("调试：一键登录") {
-                            Task {
-                                _ = await appState.quickLoginForDebug()
-                            }
-                        }
-                        .buttonStyle(BetweenUsPrimaryButtonStyle())
-                        .disabled(appState.authLoading)
-#endif
+                        legalLinks
                     }
                     .betweenUsCardStyle()
 
@@ -106,22 +108,6 @@ struct LoginView: View {
                             .textSelection(.enabled)
                             .betweenUsCardStyle()
                     }
-
-#if DEBUG
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("调试配置")
-                            .font(.headline)
-                            .foregroundStyle(BetweenUsTheme.textPrimary)
-                        TextField("http://127.0.0.1:8000", text: $appState.serverBaseURL)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit {
-                                appState.persistServerBaseURL()
-                            }
-                    }
-                    .betweenUsCardStyle()
-#endif
                 }
                 .padding(20)
             }
@@ -184,5 +170,49 @@ struct LoginView: View {
                 break
             }
         }
+    }
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                appState.authErrorMessage = "Apple 登录返回内容无效"
+                return
+            }
+            guard
+                let identityData = credential.identityToken,
+                let identityToken = String(data: identityData, encoding: .utf8),
+                let codeData = credential.authorizationCode,
+                let authorizationCode = String(data: codeData, encoding: .utf8)
+            else {
+                appState.authErrorMessage = "Apple 登录缺少必要凭据"
+                return
+            }
+
+            let fullName = [credential.fullName?.familyName, credential.fullName?.givenName]
+                .compactMap { $0 }
+                .joined()
+
+            Task {
+                _ = await appState.loginWithApple(
+                    identityToken: identityToken,
+                    authorizationCode: authorizationCode,
+                    fullName: fullName
+                )
+            }
+        case .failure(let error):
+            appState.authErrorMessage = "Apple 登录失败：\(error.localizedDescription)"
+        }
+    }
+
+    private var legalLinks: some View {
+        HStack(spacing: 4) {
+            Text("登录即表示你同意")
+            Link("《用户协议》", destination: AppConfig.userAgreementURL)
+            Text("与")
+            Link("《隐私政策》", destination: AppConfig.privacyPolicyURL)
+        }
+        .font(.footnote)
+        .foregroundStyle(BetweenUsTheme.textTertiary)
     }
 }

@@ -66,67 +66,6 @@ final class RecordViewModel: ObservableObject {
         }
     }
 
-#if DEBUG
-    func analyzeBundledSampleAudio(appState: AppState) {
-        guard appState.isLoggedIn else {
-            errorMessage = "请先完成登录再运行示例音频。"
-            return
-        }
-        guard let bundledURL = Bundle.main.url(forResource: "sample_conflict", withExtension: "m4a") else {
-            errorMessage = "示例音频不存在，请重新构建 App。"
-            return
-        }
-
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("betweenus_sample_\(UUID().uuidString)")
-            .appendingPathExtension("m4a")
-        do {
-            try? FileManager.default.removeItem(at: tempURL)
-            try FileManager.default.copyItem(at: bundledURL, to: tempURL)
-        } catch {
-            errorMessage = "示例音频准备失败：\(error.localizedDescription)"
-            return
-        }
-
-        statusText = "正在分析示例音频"
-        setProgress(10)
-        errorMessage = nil
-
-        Task {
-            defer {
-                try? FileManager.default.removeItem(at: tempURL)
-            }
-            await analyzeAudio(audioURL: tempURL, duration: 1, title: "示例场景复盘", appState: appState)
-        }
-    }
-#endif
-
-    func runAutomatedFlowIfNeeded(appState: AppState) async {
-#if DEBUG
-        if ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_SAMPLE"] == "1" {
-            analyzeBundledSampleAudio(appState: appState)
-            return
-        }
-#endif
-        guard ProcessInfo.processInfo.environment["BETWEENUS_AUTORUN_E2E"] == "1" else {
-            return
-        }
-        guard !isRecording else { return }
-
-        startRecording()
-
-        for _ in 0 ..< 30 {
-            if isRecording {
-                break
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-        }
-
-        if isRecording {
-            stopAndAnalyze(appState: appState)
-        }
-    }
-
     private func analyzeAudio(audioURL: URL, duration: Int, title: String, appState: AppState) async {
         do {
             guard let baseURL = URL(string: appState.serverBaseURL) else {
@@ -243,10 +182,10 @@ final class RecordViewModel: ObservableObject {
             return "没有检测到有效语音，请靠近麦克风并重试。"
         }
         if raw.contains("invalid audio format") || raw.contains("audio convert failed") {
-            return "录音格式无法识别，请重试一次；若在模拟器中测试，建议改用真机。"
+            return "录音格式无法识别，请重试一次。"
         }
         if raw.contains("任务系统暂时不可用") {
-            return "任务队列暂时繁忙，系统已自动切换兜底通道，请稍后再试。"
+            return "任务队列暂时繁忙，请稍后再试。"
         }
         return raw
     }

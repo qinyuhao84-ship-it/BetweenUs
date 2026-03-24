@@ -3,7 +3,6 @@ import SwiftUI
 struct RecordView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = RecordViewModel()
-    @State private var didRunAutomation = false
 
     var body: some View {
         ZStack {
@@ -39,15 +38,6 @@ struct RecordView: View {
                     .accessibilityIdentifier("record.toggleButton")
                     .disabled(!appState.isLoggedIn)
 
-#if DEBUG
-                    Button("开发测试：用示例音频跑通全链路") {
-                        viewModel.analyzeBundledSampleAudio(appState: appState)
-                    }
-                    .buttonStyle(BetweenUsPrimaryButtonStyle())
-                    .accessibilityIdentifier("record.debugSampleButton")
-                    .disabled(!appState.isLoggedIn || viewModel.isRecording)
-#endif
-
                     if let error = viewModel.errorMessage {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("本次复盘中断", systemImage: "exclamationmark.triangle.fill")
@@ -82,11 +72,6 @@ struct RecordView: View {
                 }
                 .padding(20)
             }
-        }
-        .task {
-            guard !didRunAutomation else { return }
-            didRunAutomation = true
-            await viewModel.runAutomatedFlowIfNeeded(appState: appState)
         }
     }
 

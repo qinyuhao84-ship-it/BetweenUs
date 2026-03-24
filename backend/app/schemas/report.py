@@ -16,6 +16,7 @@ class ReportDraft(BaseModel):
     potential_needs: list[str]
     repair_suggestions: list[str]
     action_tasks: list[ReportDraftTask]
+    detailed_report: str
 
 
 class ReportResponse(BaseModel):
@@ -25,3 +26,4 @@ class ReportResponse(BaseModel):
     potential_needs: list[str]
     repair_suggestions: list[str]
     action_tasks: list[ActionTask]
+    detailed_report: str = ""

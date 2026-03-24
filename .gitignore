@@ -5,6 +5,12 @@
 backend/.venv/
 backend/.pytest_cache/
 backend/.coverage
+**/__pycache__/
+*.pyc
+*.pyo
+backend/*.db
+backend/tests/*.db
+backend/storage/
 
 # Env
 backend/.env
@@ -14,7 +20,13 @@ ios/BetweenUs.xcodeproj/project.xcworkspace/xcuserdata/
 ios/BetweenUs.xcodeproj/xcuserdata/
 ios/build/
 DerivedData/
+*.xcresult
 
 # IDE
 .vscode/
 .idea/
+
+# Local review artifacts
+temp_*.png
+release_ui_*.png
+qa_run.mp4

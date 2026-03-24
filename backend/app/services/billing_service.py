@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from datetime import UTC, datetime
 
 from app.core.config import get_settings
-from app.db.models import EntitlementModel, IAPTransactionModel, PaymentOrderModel
+from app.db.models import EntitlementModel, IAPTransactionModel
 from app.db.session import session_scope
+from app.services.apple_services import AppStoreVerificationService, DecodedAppStoreNotification, VerifiedAppStoreTransaction
 from app.services.pricing import BillingSettlement, settle_usage
 
 
@@ -26,26 +26,15 @@ class TopupPackage:
         return f"¥{self.amount_cny / 100:.2f}"
 
 
-@dataclass
-class PaymentOrder:
-    order_no: str
-    channel: str
-    package_id: str
-    units: int
-    amount_cny: int
-    status: str
-    payment_payload: str
-    expires_at: datetime
-
-
 class BillingService:
     def __init__(self) -> None:
         self._default_sub_units = get_settings().default_subscription_units
         self._settings = get_settings()
+        self._app_store_service = AppStoreVerificationService(settings=self._settings)
         self._packages = {
-            "betweenus.payg.3": TopupPackage(package_id="betweenus.payg.3", title="轻量包", units=3, amount_cny=1990),
-            "betweenus.payg.8": TopupPackage(package_id="betweenus.payg.8", title="标准包", units=8, amount_cny=4990),
-            "betweenus.payg.20": TopupPackage(package_id="betweenus.payg.20", title="家庭包", units=20, amount_cny=10900),
+            "betweenus.payg.1": TopupPackage(package_id="betweenus.payg.1", title="单次包", units=1, amount_cny=0),
+            "betweenus.payg.2": TopupPackage(package_id="betweenus.payg.2", title="双次包", units=2, amount_cny=0),
+            "betweenus.payg.3": TopupPackage(package_id="betweenus.payg.3", title="三次包", units=3, amount_cny=0),
         }
 
     def get_or_create(self, user_id: str) -> Entitlement:
@@ -92,77 +81,118 @@ class BillingService:
             return self._to_entitlement(entitlement), True
 
     def list_packages(self) -> list[TopupPackage]:
-        return sorted(self._packages.values(), key=lambda x: x.amount_cny)
+        return sorted(self._packages.values(), key=lambda x: x.units)
 
-    def create_payment_order(self, user_id: str, package_id: str, channel: str) -> PaymentOrder:
-        if channel not in {"alipay", "wechat"}:
-            raise ValueError("不支持的支付渠道")
-        pack = self._packages.get(package_id)
+    def verify_signed_transaction(self, signed_transaction_info: str) -> VerifiedAppStoreTransaction:
+        return self._app_store_service.verify_signed_transaction(signed_transaction_info)
+
+    def verify_and_decode_notification(self, signed_payload: str) -> DecodedAppStoreNotification:
+        return self._app_store_service.verify_notification(signed_payload)
+
+    def apply_verified_transaction(
+        self,
+        user_id: str,
+        transaction: VerifiedAppStoreTransaction,
+    ) -> tuple[Entitlement, bool]:
+        pack = self._packages.get(transaction.product_id)
         if pack is None:
-            raise ValueError("套餐不存在")
-
-        order_no = f"bu_{uuid4().hex[:24]}"
-        now = datetime.now(UTC)
-        expires_at = now.replace(microsecond=0)
-        expires_at = expires_at.replace(second=(expires_at.second // 30) * 30)
-        expires_at = expires_at + timedelta(minutes=15)
-
-        payload = self._build_payment_payload(order_no=order_no, package=pack, channel=channel)
+            raise ValueError("App Store 商品不存在")
 
         with session_scope() as db:
-            db.add(
-                PaymentOrderModel(
-                    order_no=order_no,
-                    user_id=user_id,
-                    package_id=pack.package_id,
-                    channel=channel,
-                    units=pack.units,
-                    amount_cny=pack.amount_cny,
-                    status="pending",
-                    provider_order_id="",
-                    payment_payload=payload,
-                    created_at=now,
-                    updated_at=now,
-                )
-            )
-            db.commit()
-
-        return PaymentOrder(
-            order_no=order_no,
-            channel=channel,
-            package_id=pack.package_id,
-            units=pack.units,
-            amount_cny=pack.amount_cny,
-            status="pending",
-            payment_payload=payload,
-            expires_at=expires_at,
-        )
-
-    def confirm_payment(self, user_id: str, order_no: str, provider_order_id: str = "") -> tuple[Entitlement, bool]:
-        with session_scope() as db:
-            row = db.get(PaymentOrderModel, order_no)
-            if row is None:
-                raise KeyError("订单不存在")
-            if row.user_id != user_id:
-                raise PermissionError("无权操作该订单")
-
+            row = db.get(IAPTransactionModel, transaction.transaction_id)
             entitlement = self._get_or_create_row(db=db, user_id=user_id)
-            if row.status == "paid":
+
+            if row is None:
+                row = IAPTransactionModel(
+                    transaction_id=transaction.transaction_id,
+                    user_id=user_id,
+                    original_transaction_id=transaction.original_transaction_id,
+                    product_id=transaction.product_id,
+                    signed_transaction_info=transaction.signed_transaction_info,
+                    units=pack.units,
+                    environment=transaction.environment,
+                    purchase_date_ms=transaction.purchase_date_ms,
+                    signed_date_ms=transaction.signed_date_ms,
+                    revocation_date_ms=transaction.revocation_date_ms or 0,
+                    revocation_reason=transaction.revocation_reason if transaction.revocation_reason is not None else -1,
+                    revoked=transaction.revocation_date_ms is not None,
+                    created_at=datetime.now(UTC),
+                )
+                db.add(row)
+                if transaction.revocation_date_ms is None:
+                    entitlement.payg_units_left += pack.units
+                    entitlement.updated_at = datetime.now(UTC)
+                    db.add(entitlement)
+                    db.commit()
+                    db.refresh(entitlement)
+                    return self._to_entitlement(entitlement), True
+
                 db.add(entitlement)
                 db.commit()
                 db.refresh(entitlement)
                 return self._to_entitlement(entitlement), False
 
-            row.status = "paid"
-            row.provider_order_id = provider_order_id.strip()[:120]
-            row.updated_at = datetime.now(UTC)
-            entitlement.payg_units_left += max(row.units, 0)
-            entitlement.updated_at = datetime.now(UTC)
+            if not row.user_id:
+                row.user_id = user_id
+            elif row.user_id != user_id:
+                raise PermissionError("该交易属于其他账号")
+
+            changed = False
+            row.original_transaction_id = transaction.original_transaction_id
+            row.product_id = transaction.product_id
+            row.signed_transaction_info = transaction.signed_transaction_info
+            row.environment = transaction.environment
+            row.purchase_date_ms = transaction.purchase_date_ms
+            row.signed_date_ms = transaction.signed_date_ms
+            row.revocation_reason = transaction.revocation_reason if transaction.revocation_reason is not None else -1
+
+            if transaction.revocation_date_ms is not None and not row.revoked:
+                row.revoked = True
+                row.revocation_date_ms = transaction.revocation_date_ms
+                entitlement.payg_units_left = max(entitlement.payg_units_left - row.units, 0)
+                entitlement.updated_at = datetime.now(UTC)
+                changed = True
+            elif transaction.revocation_date_ms is None and row.revoked:
+                row.revoked = False
+                row.revocation_date_ms = 0
+                entitlement.payg_units_left += row.units
+                entitlement.updated_at = datetime.now(UTC)
+                changed = True
+
             db.add(row)
             db.add(entitlement)
             db.commit()
             db.refresh(entitlement)
-            return self._to_entitlement(entitlement), True
+            return self._to_entitlement(entitlement), changed
+
+    def apply_app_store_notification(self, notification: DecodedAppStoreNotification) -> tuple[Entitlement | None, bool]:
+        transaction = self.verify_signed_transaction(notification.signed_transaction_info)
+        with session_scope() as db:
+            row = db.get(IAPTransactionModel, transaction.transaction_id)
+            if row is None:
+                pack = self._packages.get(transaction.product_id)
+                db.add(
+                    IAPTransactionModel(
+                        transaction_id=transaction.transaction_id,
+                        user_id="",
+                        original_transaction_id=transaction.original_transaction_id,
+                        product_id=transaction.product_id,
+                        signed_transaction_info=transaction.signed_transaction_info,
+                        units=pack.units if pack else 0,
+                        environment=transaction.environment,
+                        purchase_date_ms=transaction.purchase_date_ms,
+                        signed_date_ms=transaction.signed_date_ms,
+                        revocation_date_ms=transaction.revocation_date_ms or 0,
+                        revocation_reason=transaction.revocation_reason if transaction.revocation_reason is not None else -1,
+                        revoked=transaction.revocation_date_ms is not None,
+                        created_at=datetime.now(UTC),
+                    )
+                )
+                db.commit()
+                return None, False
+
+            user_id = row.user_id
+        return self.apply_verified_transaction(user_id=user_id, transaction=transaction)
 
     def settle(self, user_id: str, duration_minutes: int) -> BillingSettlement:
         with session_scope() as db:
@@ -200,22 +230,3 @@ class BillingService:
             subscription_units_left=row.subscription_units_left,
             payg_units_left=row.payg_units_left,
         )
-
-    def _build_payment_payload(self, order_no: str, package: TopupPackage, channel: str) -> str:
-        # 生产环境应替换为真实支付宝/微信下单结果。
-        if self._settings.payment_mode == "real":
-            if channel == "alipay":
-                if not self._settings.alipay_app_id:
-                    raise ValueError("支付宝配置不完整，请先设置 ALIPAY_APP_ID")
-                return (
-                    f"alipay://pay?order_no={order_no}&amount={package.amount_cny}&"
-                    f"app_id={self._settings.alipay_app_id}"
-                )
-            if not self._settings.wechat_mch_id:
-                raise ValueError("微信支付配置不完整，请先设置 WECHAT_MCH_ID")
-            return (
-                f"weixin://wxpay/bizpayurl?order_no={order_no}&amount={package.amount_cny}&"
-                f"mch_id={self._settings.wechat_mch_id}"
-            )
-
-        return f"mock://pay?channel={channel}&order_no={order_no}&amount={package.amount_cny}"

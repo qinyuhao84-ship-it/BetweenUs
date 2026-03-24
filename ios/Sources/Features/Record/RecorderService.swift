@@ -4,14 +4,8 @@ import Foundation
 final class RecorderService: NSObject, AVAudioRecorderDelegate {
     private var recorder: AVAudioRecorder?
     private var fileURL: URL?
-    private var useFakeRecorder: Bool {
-        ProcessInfo.processInfo.environment["BETWEENUS_FAKE_RECORDER"] == "1"
-    }
 
     func requestPermission() async -> Bool {
-        if useFakeRecorder {
-            return true
-        }
         return await withCheckedContinuation { continuation in
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 continuation.resume(returning: granted)
@@ -20,15 +14,6 @@ final class RecorderService: NSObject, AVAudioRecorderDelegate {
     }
 
     func start() throws {
-        if useFakeRecorder {
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("betweenus")
-                .appendingPathExtension("wav")
-            try Data("betweenus-fake-audio".utf8).write(to: url)
-            fileURL = url
-            return
-        }
-
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try session.setActive(true)

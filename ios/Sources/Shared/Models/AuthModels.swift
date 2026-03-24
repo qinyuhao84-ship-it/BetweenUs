@@ -2,6 +2,8 @@ import Foundation
 
 struct AppleLoginRequest: Codable {
     let apple_identity_token: String
+    let authorization_code: String
+    let full_name: String
 }
 
 struct AuthTokenResponse: Codable {
@@ -11,6 +13,7 @@ struct AuthTokenResponse: Codable {
     let expires_in_minutes: Int
     let phone: String?
     let phone_masked: String?
+    let has_bound_phone: Bool
 }
 
 struct SendSMSCodeRequest: Codable {
@@ -21,7 +24,6 @@ struct SendSMSCodeResponse: Codable {
     let sent: Bool
     let expires_in_seconds: Int
     let retry_after_seconds: Int
-    let dev_code: String?
 }
 
 struct PhoneLoginRequest: Codable {
@@ -29,10 +31,16 @@ struct PhoneLoginRequest: Codable {
     let code: String
 }
 
+struct PhoneBindRequest: Codable {
+    let phone: String
+    let code: String
+}
+
 struct UserProfileResponse: Codable {
     let user_id: String
-    let phone: String
-    let phone_masked: String
+    let phone: String?
+    let phone_masked: String?
+    let has_bound_phone: Bool
     let nickname: String
     let created_at: Date
     let last_login_at: Date
@@ -40,4 +48,9 @@ struct UserProfileResponse: Codable {
 
 struct UpdateProfileRequest: Codable {
     let nickname: String
+}
+
+struct DeleteAccountResponse: Codable {
+    let success: Bool
+    let apple_revoked: Bool
 }

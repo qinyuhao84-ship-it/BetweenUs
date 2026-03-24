@@ -5,6 +5,9 @@ description = "BetweenUs API and async workers"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "alibabacloud_dypnsapi20170525>=2.0.0",
+  "app-store-server-library>=3.0.0",
+  "boto3>=1.42.74",
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.31.0",
   "pydantic-settings>=2.6.0",

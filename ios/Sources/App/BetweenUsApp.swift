@@ -15,10 +15,12 @@ struct BetweenUsApp: App {
             }
                 .environmentObject(appState)
                 .task {
-                    await appState.refreshRuntimeStatus()
+                    appState.iapStore.startObserving(appState: appState)
                     if appState.isLoggedIn {
                         await appState.refreshProfile()
                         await appState.refreshEntitlements()
+                        await appState.refreshTopupPackages()
+                        await appState.iapStore.syncUnfinishedTransactions(appState: appState)
                     }
                 }
         }

@@ -15,10 +15,12 @@ struct ConflictReport: Codable, Hashable {
     let potential_needs: [String]
     let repair_suggestions: [String]
     let action_tasks: [ActionTaskItem]
+    let detailed_report: String?
 
     var sessionID: String { session_id }
     var transcriptExcerpt: String { transcript_excerpt ?? "" }
     var potentialNeeds: [String] { potential_needs }
     var repairSuggestions: [String] { repair_suggestions }
     var actionTasks: [ActionTaskItem] { action_tasks }
+    var detailedReport: String { detailed_report ?? "" }
 }

@@ -1,10 +1,11 @@
-import json
-import subprocess
+import mimetypes
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import boto3
 import httpx
 
 from app.core.config import Settings, get_settings
@@ -70,7 +71,7 @@ class ASRService:
             raise ProviderError("豆包录音识别未配置，请先设置 ASR_VOLC_APP_ID 与 ASR_VOLC_ACCESS_TOKEN")
 
         target = Path(audio_path)
-        audio_url = self._resolve_audio_url(audio_path, target)
+        audio_url, cleanup_remote = self._resolve_audio_source(audio_path, target)
         request_id = str(uuid.uuid4())
         headers = {
             "Content-Type": "application/json",
@@ -93,169 +94,123 @@ class ASRService:
                 "enable_punc": True,
             },
         }
-
         try:
-            submit_response = httpx.post(
-                self.settings.asr_volc_submit_url,
-                headers=headers,
-                json=payload,
-                timeout=self.settings.provider_timeout_seconds,
-            )
-        except httpx.HTTPError as exc:
-            raise ProviderError("豆包 ASR 提交任务失败，请稍后重试") from exc
-
-        if submit_response.status_code >= 400:
-            raise ProviderError(self._read_remote_error(submit_response, "豆包 ASR"))
-
-        submit_code = self._parse_volc_status_code(submit_response)
-        if submit_code != 20000000:
-            message = self._extract_volc_message(submit_response)
-            raise ProviderError(f"豆包 ASR 提交失败：{message}")
-
-        query_headers = {k: v for k, v in headers.items() if k != "X-Api-Sequence"}
-        for _ in range(self.settings.asr_poll_max_attempts):
             try:
-                query_response = httpx.post(
-                    self.settings.asr_volc_query_url,
-                    headers=query_headers,
-                    json={},
+                submit_response = httpx.post(
+                    self.settings.asr_volc_submit_url,
+                    headers=headers,
+                    json=payload,
                     timeout=self.settings.provider_timeout_seconds,
                 )
             except httpx.HTTPError as exc:
-                raise ProviderError("豆包 ASR 查询结果失败，请稍后重试") from exc
+                raise ProviderError("豆包 ASR 提交任务失败，请稍后重试") from exc
 
-            if query_response.status_code >= 400:
-                raise ProviderError(self._read_remote_error(query_response, "豆包 ASR"))
+            if submit_response.status_code >= 400:
+                raise ProviderError(self._read_remote_error(submit_response, "豆包 ASR"))
 
-            query_code = self._parse_volc_status_code(query_response)
-            if query_code == 20000000:
-                transcript = self._parse_volc_result_text(query_response)
-                if not transcript:
-                    raise ProviderError("豆包 ASR 返回成功，但文本为空")
-                return transcript
-            if query_code in {20000001, 20000002}:
-                time.sleep(self.settings.asr_poll_seconds)
-                continue
-            if query_code == 20000003:
-                raise ProviderError("豆包 ASR 检测到静音音频，请重新录制")
+            submit_code = self._parse_volc_status_code(submit_response)
+            if submit_code != 20000000:
+                message = self._extract_volc_message(submit_response)
+                raise ProviderError(f"豆包 ASR 提交失败：{message}")
 
-            message = self._extract_volc_message(query_response)
-            raise ProviderError(f"豆包 ASR 查询失败：{message}")
+            query_headers = {k: v for k, v in headers.items() if k != "X-Api-Sequence"}
+            for _ in range(self.settings.asr_poll_max_attempts):
+                try:
+                    query_response = httpx.post(
+                        self.settings.asr_volc_query_url,
+                        headers=query_headers,
+                        json={},
+                        timeout=self.settings.provider_timeout_seconds,
+                    )
+                except httpx.HTTPError as exc:
+                    raise ProviderError("豆包 ASR 查询结果失败，请稍后重试") from exc
 
-        raise ProviderError("豆包 ASR 处理超时，请稍后重试")
+                if query_response.status_code >= 400:
+                    raise ProviderError(self._read_remote_error(query_response, "豆包 ASR"))
 
-    def _resolve_audio_url(self, audio_path: str, target: Path) -> str:
+                query_code = self._parse_volc_status_code(query_response)
+                if query_code == 20000000:
+                    transcript = self._parse_volc_result_text(query_response)
+                    if not transcript:
+                        raise ProviderError("豆包 ASR 返回成功，但文本为空")
+                    return transcript
+                if query_code in {20000001, 20000002}:
+                    time.sleep(self.settings.asr_poll_seconds)
+                    continue
+                if query_code == 20000003:
+                    raise ProviderError("豆包 ASR 检测到静音音频，请重新录制")
+
+                message = self._extract_volc_message(query_response)
+                raise ProviderError(f"豆包 ASR 查询失败：{message}")
+
+            raise ProviderError("豆包 ASR 处理超时，请稍后重试")
+        finally:
+            cleanup_remote()
+
+    def _resolve_audio_source(self, audio_path: str, target: Path) -> tuple[str, Callable[[], None]]:
         if audio_path.startswith("http://") or audio_path.startswith("https://"):
-            return audio_path
+            return audio_path, lambda: None
         if not target.exists():
             raise ProviderError("音频文件不存在，无法转写")
-        if self.settings.asr_volc_upload_provider == "catbox":
-            return self._upload_to_catbox(target)
-        if self.settings.asr_volc_upload_provider == "tmpfiles":
-            return self._upload_to_tmpfiles(target)
+        if self.settings.asr_volc_upload_provider == "volc_tos":
+            audio_url, object_key = self._upload_to_volc_tos(target)
+            return audio_url, lambda: self._cleanup_remote_audio(object_key)
         raise ProviderError(
             "豆包录音识别模型要求公网可访问的音频 URL。"
-            "请先把音频放到可外网访问的对象存储，或在开发环境将 ASR_VOLC_UPLOAD_PROVIDER 设置为 catbox / tmpfiles。"
+            "请先把音频放到火山 TOS，或直接传入可访问的 HTTPS 音频地址。"
         )
 
-    def _upload_to_catbox(self, target: Path) -> str:
-        last_error = "上传音频到临时公网地址失败，请检查网络"
-        for attempt in range(3):
-            try:
-                result = subprocess.run(
-                    [
-                        "curl",
-                        "--http1.1",
-                        "-sS",
-                        "-F",
-                        "reqtype=fileupload",
-                        "-F",
-                        f"fileToUpload=@{target}",
-                        "https://catbox.moe/user/api.php",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=self.settings.provider_timeout_seconds,
-                    check=False,
-                )
-            except (OSError, subprocess.SubprocessError) as exc:
-                last_error = str(exc).strip() or "上传音频到临时公网地址失败，请稍后重试"
-                if attempt < 2:
-                    time.sleep(1)
-                    continue
-                raise ProviderError("上传音频到临时公网地址失败，请稍后重试") from exc
+    def _upload_to_volc_tos(self, target: Path) -> tuple[str, str]:
+        key_prefix = self.settings.volc_tos_key_prefix.strip().strip("/")
+        object_key = f"{key_prefix}/{uuid.uuid4().hex}{target.suffix.lower()}" if key_prefix else f"{uuid.uuid4().hex}{target.suffix.lower()}"
+        content_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        try:
+            client = boto3.client(
+                "s3",
+                endpoint_url=self._normalize_tos_endpoint(self.settings.volc_tos_endpoint),
+                region_name=self.settings.volc_tos_region,
+                aws_access_key_id=self.settings.volc_tos_access_key_id,
+                aws_secret_access_key=self.settings.volc_tos_access_key_secret,
+            )
+            client.upload_file(
+                Filename=str(target),
+                Bucket=self.settings.volc_tos_bucket,
+                Key=object_key,
+                ExtraArgs={"ContentType": content_type},
+            )
+            presigned_url = client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.settings.volc_tos_bucket, "Key": object_key},
+                ExpiresIn=self.settings.volc_tos_presign_expires_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ProviderError("上传音频到火山 TOS 失败，请检查存储配置") from exc
 
-            if result.returncode == 0:
-                url = (result.stdout or "").strip()
-                if url.startswith("http://") or url.startswith("https://"):
-                    return url
-                last_error = "临时音频上传失败，请改用对象存储 URL"
-            else:
-                detail = (result.stderr or "").strip()
-                if detail:
-                    last_error = f"上传音频到临时公网地址失败：{detail}"
-                else:
-                    last_error = "上传音频到临时公网地址失败，请检查网络"
+        if not presigned_url.startswith(("http://", "https://")):
+            raise ProviderError("火山 TOS 预签名地址无效")
+        return presigned_url, object_key
 
-            if attempt < 2:
-                time.sleep(1)
+    def _cleanup_remote_audio(self, object_key: str) -> None:
+        if not object_key:
+            return
+        try:
+            client = boto3.client(
+                "s3",
+                endpoint_url=self._normalize_tos_endpoint(self.settings.volc_tos_endpoint),
+                region_name=self.settings.volc_tos_region,
+                aws_access_key_id=self.settings.volc_tos_access_key_id,
+                aws_secret_access_key=self.settings.volc_tos_access_key_secret,
+            )
+            client.delete_object(Bucket=self.settings.volc_tos_bucket, Key=object_key)
+        except Exception:
+            return
 
-        raise ProviderError(last_error)
-
-    def _upload_to_tmpfiles(self, target: Path) -> str:
-        last_error = "上传音频到 tmpfiles 失败，请检查网络"
-        for attempt in range(3):
-            try:
-                result = subprocess.run(
-                    [
-                        "curl",
-                        "--http1.1",
-                        "-sS",
-                        "-F",
-                        f"file=@{target}",
-                        "https://tmpfiles.org/api/v1/upload",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=self.settings.provider_timeout_seconds,
-                    check=False,
-                )
-            except (OSError, subprocess.SubprocessError) as exc:
-                last_error = str(exc).strip() or "上传音频到 tmpfiles 失败，请稍后重试"
-                if attempt < 2:
-                    time.sleep(1)
-                    continue
-                raise ProviderError("上传音频到 tmpfiles 失败，请稍后重试") from exc
-
-            if result.returncode == 0:
-                try:
-                    payload = json.loads((result.stdout or "").strip() or "{}")
-                except json.JSONDecodeError:
-                    payload = {}
-                url = ""
-                if isinstance(payload, dict):
-                    data = payload.get("data")
-                    if isinstance(data, dict):
-                        raw_url = str(data.get("url", "")).strip()
-                        if raw_url.startswith("http://") or raw_url.startswith("https://"):
-                            if "/dl/" in raw_url:
-                                url = raw_url
-                            else:
-                                url = raw_url.replace("://tmpfiles.org/", "://tmpfiles.org/dl/")
-                if url.startswith("http://") or url.startswith("https://"):
-                    return url
-                last_error = "tmpfiles 返回了无效链接，请改用对象存储 URL"
-            else:
-                detail = (result.stderr or "").strip()
-                if detail:
-                    last_error = f"上传音频到 tmpfiles 失败：{detail}"
-                else:
-                    last_error = "上传音频到 tmpfiles 失败，请检查网络"
-
-            if attempt < 2:
-                time.sleep(1)
-
-        raise ProviderError(last_error)
+    @staticmethod
+    def _normalize_tos_endpoint(endpoint: str) -> str:
+        value = endpoint.strip()
+        if value.startswith("http://") or value.startswith("https://"):
+            return value
+        return f"https://{value}"
 
     @staticmethod
     def _normalize_asr_language(language: str) -> str:
@@ -337,14 +292,7 @@ class ASRService:
         return str(payload.get("text", "")).strip()
 
     def _use_mock(self) -> bool:
-        mode = self.settings.ai_provider_mode
-        if mode == "mock":
-            return True
-        if mode == "auto":
-            if self.settings.asr_provider == "volc_recording_bigmodel":
-                return not (self.settings.asr_volc_app_id and self.settings.asr_volc_access_token)
-            return not self.settings.asr_api_key
-        return False
+        return self.settings.env == "test" and self.settings.ai_provider_mode == "mock"
 
     @staticmethod
     def _read_remote_error(response: httpx.Response, name: str) -> str:
@@ -380,42 +328,92 @@ class LLMService:
         if self._use_mock():
             return ReportDraft(
                 summary="冲突核心是双方都想被重视，但表达方式让对方只听到了指责。",
-                potential_needs=["被认真倾听", "承诺有明确时间点"],
-                repair_suggestions=["先复述再表达感受", "把承诺改成具体时间和动作"],
+                potential_needs=[
+                    "A方显性表达：希望立刻解决问题；A方隐含诉求：被当作重要优先级",
+                    "A方显性表达：不想再重复同一争论；A方隐含诉求：关系里有确定性",
+                    "B方显性表达：不想被命令和指责；B方隐含诉求：被尊重表达边界",
+                    "B方显性表达：希望有缓冲时间；B方隐含诉求：情绪被看见并允许修复节奏",
+                ],
+                repair_suggestions=[
+                    "开场先用 30 秒复述对方意思，再说自己的感受，避免直接反驳",
+                    "把“你总是”改成“当 X 发生时，我会担心 Y”",
+                    "每次冲突只解决一个议题，其他议题放进待办清单",
+                    "约定冲突暂停词，触发后先冷静 15 分钟再继续沟通",
+                ],
                 action_tasks=[
                     ReportDraftTask(content="今晚 22:00 前进行 10 分钟轮流表达，不打断"),
                     ReportDraftTask(content="明天 12:00 前共同确认一条可执行的小约定"),
+                    ReportDraftTask(content="本周末前复盘一次“哪些表达让你感觉被理解”"),
                 ],
+                detailed_report=(
+                    "【1. 情绪动态与触发点】\n"
+                    "A方在对话中主要呈现焦虑+愤怒混合情绪，触发点是“承诺不确定”；"
+                    "B方主要呈现防御+委屈，触发点是“被否定感”。\n\n"
+                    "【2. 双方心理需求与防御机制】\n"
+                    "A方核心需求是稳定与可预期，防御机制偏向控制与追问；"
+                    "B方核心需求是被尊重与被接纳，防御机制偏向回避与沉默。\n\n"
+                    "【3. 沟通失真链路】\n"
+                    "A方的“催促”被B方听成“否定”，B方的“沉默”被A方听成“不在乎”，"
+                    "双方都在保护自己，但彼此接收到的是攻击信号。\n\n"
+                    "【4. 关系风险评估】\n"
+                    "短期风险是高频重复争执；中期风险是情绪账户透支；长期风险是关系意义感下降。\n\n"
+                    "【5. 修复策略】\n"
+                    "短期先止损（暂停词+轮流表达），中期建立沟通节奏（固定每周关系对话），"
+                    "长期建立共同问题解决模板（议题澄清-需求表达-行动确认-回看）。\n\n"
+                    "【6. 建议话术】\n"
+                    "A方可说：我现在急不是想压你，而是我在害怕事情又悬着；"
+                    "B方可说：我不是不在乎，我需要先整理情绪才能好好回应你。\n\n"
+                    "【7. 自我调节练习】\n"
+                    "冲突前做 60 秒呼吸和身体扫描；冲突后各自写下“我真正担心的是什么”。\n\n"
+                    "【8. 下次复盘观察指标】\n"
+                    "是否减少打断、是否出现复述、是否形成可验证的小承诺、是否按约回看。"
+                ),
             )
 
         if not self.settings.llm_api_key:
             raise ProviderError("LLM 服务未配置，请先设置 LLM_API_KEY 或 DEEPSEEK_API_KEY")
 
-        system_prompt = (
-            "你是“关系修复复盘教练”，不是裁判。"
-            "你的目标是把一段冲突对话拆成可理解、可执行、可复盘的关系修复方案。"
-            "禁止输出评判输赢、道德指责或谁该被教育。"
-            "请严格遵循："
-            "1) summary 使用四段结构并打上小标题："
-            "【冲突主线】、【双方表述】、【深层诉求】、【当前卡点】；"
-            "2) 【双方表述】必须同时写出 A 方和 B 方“说了什么 + 真正在意什么”；"
-            "3) potential_needs 至少 4 条，且必须覆盖双方，建议格式："
-            "“A方显性表达：...；A方隐含诉求：...”或“B方...”；"
-            "4) repair_suggestions 至少 4 条，要求具体到话术或动作，避免“多沟通”这类空话；"
-            "5) action_tasks 至少 3 条，必须可验证，包含时间锚点、触发条件或完成标准；"
-            "6) 若信息不足，明确写“基于现有信息的保守推断”，不要臆造事实。"
-            "输出必须是严格 JSON，不要 markdown，不要解释，不要额外字段。"
-            "JSON 结构固定为："
-            '{"summary":"...",'
-            '"potential_needs":["..."],'
-            '"repair_suggestions":["..."],'
-            '"action_tasks":[{"content":"..."}]}'
-        )
+        system_prompt = """
+你是“亲密关系冲突复盘分析师 + 情绪教练”，不是裁判，不负责判定谁对谁错。
+你的任务是基于对话文本，输出高质量、可执行、可复盘的关系修复分析。
+
+【硬性目标】
+1) 保持中立：不站队、不道德评判、不贴人格标签。
+2) 心理深度：分析双方显性诉求、隐性诉求、防御机制、误读链路。
+3) 行动导向：给出可立即执行、可验证的步骤和话术。
+4) 证据意识：每个关键判断尽量对应对话证据；信息不足时明确“保守推断”。
+5) 安全边界：不得输出临床诊断，不替代专业医疗/法律建议。
+
+【输出格式要求】
+必须只输出 JSON，不要 Markdown，不要额外解释，不要多余字段。
+JSON 必须严格包含以下字段：
+{
+  "summary": "四段结构：\\n【冲突主线】...\\n【双方表述】...\\n【深层诉求】...\\n【当前卡点】...",
+  "potential_needs": ["至少4条，覆盖双方，包含显性+隐性诉求"],
+  "repair_suggestions": ["至少4条，具体到动作/话术，避免空话"],
+  "action_tasks": [{"content":"至少3条，含时间锚点或完成标准"}],
+  "detailed_report": "一份完整详尽的情感学/心理学分析长文"
+}
+
+【detailed_report 的强约束】
+必须按以下 8 个小节书写，并保留原样小节标题：
+【1. 情绪动态与触发点】
+【2. 双方心理需求与防御机制】
+【3. 沟通失真链路（谁如何被误读）】
+【4. 关系风险评估（短期/中期/长期）】
+【5. 修复策略路线图（24小时/7天/30天）】
+【6. 高风险表达替换为低伤害表达（给出可直接使用的话术）】
+【7. 自我调节与共情练习（双方各至少2条）】
+【8. 下次复盘的观察指标（可量化）】
+
+每个小节至少 3 条要点；整段 detailed_report 建议 1200~2200 中文字。
+在不确定处明确写“基于现有信息的保守推断”。
+输出前请自检字段完整性和最小条目数量，缺一不可。
+""".strip()
         user_prompt = (
             "请基于以下转写内容生成中文复盘报告。"
-            "你要像资深产品经理+关系教练那样组织信息，让用户读完后立刻知道："
-            "双方到底在争什么、真正怕什么、误会卡在哪里、下一步怎么做。"
-            "重点提炼：冲突触发点、双方表述、深层诉求、误读链路、可立即执行的修复动作。\n"
+            "先识别冲突事件链，再提炼双方显性表达和隐含情绪需求，最后给出分阶段修复计划。"
+            "如果对话证据不足，请在相关结论中写“基于现有信息的保守推断”，不要臆造事实。\n"
             f"转写文本：\n{transcript}\n"
         )
         payload = {
@@ -465,12 +463,7 @@ class LLMService:
         return self._use_mock()
 
     def _use_mock(self) -> bool:
-        mode = self.settings.ai_provider_mode
-        if mode == "mock":
-            return True
-        if mode == "auto" and not self.settings.llm_api_key:
-            return True
-        return False
+        return self.settings.env == "test" and self.settings.ai_provider_mode == "mock"
 
     @staticmethod
     def _extract_content(payload: dict[str, Any]) -> str:
@@ -504,6 +497,7 @@ class LLMService:
         potential_needs = self._normalize_string_list(payload.get("potential_needs"))
         repair_suggestions = self._normalize_string_list(payload.get("repair_suggestions"))
         action_tasks = self._normalize_action_tasks(payload.get("action_tasks"))
+        detailed_report = str(payload.get("detailed_report", "")).strip()
 
         if not potential_needs:
             raise ProviderError("LLM 缺少 potential_needs")
@@ -511,12 +505,15 @@ class LLMService:
             raise ProviderError("LLM 缺少 repair_suggestions")
         if not action_tasks:
             raise ProviderError("LLM 缺少 action_tasks")
+        if not detailed_report:
+            raise ProviderError("LLM 缺少 detailed_report")
 
         return ReportDraft(
             summary=summary[:900],
             potential_needs=potential_needs[:8],
             repair_suggestions=repair_suggestions[:8],
             action_tasks=[ReportDraftTask(content=item.content[:180]) for item in action_tasks[:6]],
+            detailed_report=detailed_report[:5200],
         )
 
     @staticmethod

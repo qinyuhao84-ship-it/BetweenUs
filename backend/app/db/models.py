@@ -29,6 +29,7 @@ class ReportModel(SQLModel, table=True):
     potential_needs_json: str
     repair_suggestions_json: str
     action_tasks_json: str
+    detailed_report_text: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -46,8 +47,16 @@ class IAPTransactionModel(SQLModel, table=True):
 
     transaction_id: str = Field(primary_key=True)
     user_id: str = Field(index=True)
-    product_id: str = Field(default="")
+    original_transaction_id: str = Field(default="", index=True)
+    product_id: str = Field(default="", index=True)
+    signed_transaction_info: str = Field(default="")
     units: int = Field(default=0)
+    environment: str = Field(default="")
+    purchase_date_ms: int = Field(default=0)
+    signed_date_ms: int = Field(default=0)
+    revocation_date_ms: int = Field(default=0)
+    revocation_reason: int = Field(default=-1)
+    revoked: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -80,7 +89,10 @@ class UserModel(SQLModel, table=True):
     __tablename__ = "users"
 
     user_id: str = Field(primary_key=True, index=True)
-    phone: str = Field(index=True)
+    phone: str = Field(default="", index=True)
+    apple_subject: str = Field(default="", index=True)
+    apple_email: str = Field(default="")
+    apple_refresh_token: str = Field(default="")
     nickname: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
     last_login_at: datetime = Field(default_factory=utcnow)

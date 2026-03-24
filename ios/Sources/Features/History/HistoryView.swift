@@ -189,44 +189,89 @@ struct HistoryView: View {
     }
 
     private func sessionRow(session: SessionSummary, report: ConflictReport) -> some View {
-        NavigationLink {
-            ReportDetailView(report: report)
-        } label: {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(alignment: .top, spacing: 8) {
-                    Text(session.title)
-                        .font(.headline)
-                        .foregroundStyle(BetweenUsTheme.textPrimary)
-                        .lineLimit(2)
-                    Spacer()
-                    Button {
-                        editingSession = session
-                        editingTitle = session.title
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(BetweenUsTheme.brandBlue)
-                            .padding(6)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Text(report.summary.replacingOccurrences(of: "\n", with: " "))
-                    .font(.subheadline)
-                    .foregroundStyle(BetweenUsTheme.textSecondary)
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(session.title)
+                    .font(.headline)
+                    .foregroundStyle(BetweenUsTheme.textPrimary)
                     .lineLimit(2)
-
-                Label(
-                    session.createdAt.formatted(date: .numeric, time: .shortened),
-                    systemImage: "calendar.badge.clock"
-                )
-                .font(.caption)
-                .foregroundStyle(BetweenUsTheme.textTertiary)
+                Spacer()
+                Button {
+                    editingSession = session
+                    editingTitle = session.title
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BetweenUsTheme.brandBlue)
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .betweenUsCardStyle()
+
+            Text(report.summary.replacingOccurrences(of: "\n", with: " "))
+                .font(.subheadline)
+                .foregroundStyle(BetweenUsTheme.textSecondary)
+                .lineLimit(2)
+
+            Label(
+                session.createdAt.formatted(date: .numeric, time: .shortened),
+                systemImage: "calendar.badge.clock"
+            )
+            .font(.caption)
+            .foregroundStyle(BetweenUsTheme.textTertiary)
+
+            NavigationLink {
+                ReportDetailView(report: report)
+            } label: {
+                HStack {
+                    Label("查看复盘报告", systemImage: "doc.text.magnifyingglass")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                }
+            }
+            .buttonStyle(BetweenUsPrimaryButtonStyle())
+
+            if !report.transcriptExcerpt.isEmpty {
+                NavigationLink {
+                    ConversationDetailView(
+                        sessionTitle: session.title,
+                        createdAt: session.createdAt,
+                        transcript: report.transcriptExcerpt
+                    )
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("对话摘录（已折叠）", systemImage: "quote.bubble")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BetweenUsTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(BetweenUsTheme.textTertiary)
+                        }
+
+                        Text(report.transcriptExcerpt.replacingOccurrences(of: "\n", with: " "))
+                            .font(.footnote)
+                            .foregroundStyle(BetweenUsTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.white.opacity(0.78))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(BetweenUsTheme.brandBlue.opacity(0.16), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .betweenUsCardStyle()
     }
 
     private func barHeight(for count: Int, max maxCount: Int) -> CGFloat {
@@ -257,6 +302,44 @@ struct HistoryView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .betweenUsCardStyle()
+    }
+}
+
+private struct ConversationDetailView: View {
+    let sessionTitle: String
+    let createdAt: Date
+    let transcript: String
+
+    var body: some View {
+        ZStack {
+            BetweenUsGradientBackground()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(sessionTitle)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(BetweenUsTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Label(createdAt.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar.badge.clock")
+                        .font(.footnote)
+                        .foregroundStyle(BetweenUsTheme.textTertiary)
+
+                    Text(transcript)
+                        .font(.subheadline)
+                        .lineSpacing(3)
+                        .foregroundStyle(BetweenUsTheme.textSecondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(20)
+                .betweenUsCardStyle()
+                .padding(20)
+                .padding(.bottom, 110)
+            }
+        }
+        .navigationTitle("对话详情")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

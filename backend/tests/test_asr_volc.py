@@ -1,5 +1,3 @@
-import subprocess
-
 import httpx
 import pytest
 
@@ -37,9 +35,19 @@ def test_volc_asr_requires_public_url_when_upload_disabled(tmp_path):
 def test_volc_asr_submit_and_query_success(tmp_path, monkeypatch):
     audio_file = tmp_path / "sample.wav"
     audio_file.write_bytes(b"fake-audio")
-    service = ASRService(settings=_build_settings(asr_volc_upload_provider="catbox"))
+    service = ASRService(
+        settings=_build_settings(
+            asr_volc_upload_provider="volc_tos",
+            volc_tos_endpoint="tos-cn-beijing.volces.com",
+            volc_tos_region="cn-beijing",
+            volc_tos_bucket="betweenus-audio",
+            volc_tos_access_key_id="ak",
+            volc_tos_access_key_secret="sk",
+        )
+    )
 
     query_count = {"value": 0}
+    cleaned_keys: list[str] = []
 
     def fake_post(url: str, *args: object, **kwargs: object) -> httpx.Response:
         if url.endswith("/submit"):
@@ -63,17 +71,19 @@ def test_volc_asr_submit_and_query_success(tmp_path, monkeypatch):
             )
         raise AssertionError(f"unexpected url: {url}")
 
-    def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(
-            args=["curl"],
-            returncode=0,
-            stdout="https://files.catbox.moe/demo.wav",
-            stderr="",
-        )
-
     monkeypatch.setattr("app.services.ai_providers.httpx.post", fake_post)
-    monkeypatch.setattr("app.services.ai_providers.subprocess.run", fake_run)
     monkeypatch.setattr("app.services.ai_providers.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        service,
+        "_upload_to_volc_tos",
+        lambda _target: ("https://signed.example.com/audio.wav", "betweenus-audio/demo.wav"),
+    )
+    monkeypatch.setattr(
+        service,
+        "_cleanup_remote_audio",
+        lambda object_key: cleaned_keys.append(object_key),
+    )
 
     assert service.transcribe(str(audio_file)) == "这是测试转写结果"
     assert query_count["value"] == 2
+    assert cleaned_keys == ["betweenus-audio/demo.wav"]

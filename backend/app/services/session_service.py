@@ -98,6 +98,7 @@ class SessionService:
                     potential_needs_json=json.dumps(report.potential_needs, ensure_ascii=False),
                     repair_suggestions_json=json.dumps(report.repair_suggestions, ensure_ascii=False),
                     action_tasks_json=json.dumps([task.model_dump() for task in report.action_tasks], ensure_ascii=False),
+                    detailed_report_text=report.detailed_report,
                     created_at=datetime.now(UTC),
                 )
             else:
@@ -108,6 +109,7 @@ class SessionService:
                     [task.model_dump() for task in report.action_tasks],
                     ensure_ascii=False,
                 )
+                report_row.detailed_report_text = report.detailed_report
 
             db.add(session_row)
             db.add(report_row)
@@ -158,6 +160,7 @@ class SessionService:
                 potential_needs=list(json.loads(row.potential_needs_json)),
                 repair_suggestions=list(json.loads(row.repair_suggestions_json)),
                 action_tasks=action_tasks,
+                detailed_report=row.detailed_report_text or "",
             )
 
     @staticmethod

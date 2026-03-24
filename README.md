@@ -1,16 +1,29 @@
 # BetweenUs
 
-情侣冲突复盘 App（iOS + FastAPI）首阶段实现。
+BetweenUs 是一个面向中国大陆首发的 iOS App：
+把情侣冲突里的情绪、诉求和行动建议整理成一份可执行的复盘报告。
+
+当前仓库已经完成了从“本地演示”到“可提审版本”的核心切换：
+
+- 登录：手机号验证码 + Sign in with Apple
+- 支付：Apple IAP 次数包
+- 语音：火山录音识别 + 火山 TOS 临时存储
+- 报告：DeepSeek
+- 安全：Keychain 存 token、账号删除、严格 HTTPS、Apple 交易验签
 
 面向非技术使用者的最短路径见：[快速开始](./快速开始.md)。
-Xcode 里如何测试见：[Xcode测试说明](./Xcode测试说明.md)。
+正式上线前的落地动作见：[真实服务接入与发布清单](./真实服务接入与发布清单.md)。
+提审材料参考见：[App Store 提审资料清单](./App Store 提审资料清单.md)。
+法律文档样板见：[隐私政策](./隐私政策.md)、[用户协议](./用户协议.md)、[用户隐私选择](./用户隐私选择.md)。
 
 ## 目录
 
-- `ios/`：Xcode iOS 工程（SwiftUI）
-- `backend/`：FastAPI 后端（含定价与进度服务、接口测试）
+- `ios/`：SwiftUI iOS 工程
+- `backend/`：FastAPI 后端、异步任务、Apple IAP 服务端验签
 
-## 1) 启动后端
+## 本地启动
+
+### 后端
 
 ```bash
 cd backend
@@ -19,10 +32,7 @@ uv run uvicorn app.main:app --reload --port 8000
 uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info
 ```
 
-后端业务接口默认使用 `Authorization: Bearer <token>`。
-如需临时兼容旧调试方式，需在后端开启 `ALLOW_INSECURE_HEADER_AUTH=true` 后才支持 `X-User-Id`。
-
-## 2) 启动 iOS
+### iOS
 
 ```bash
 cd ios
@@ -30,28 +40,27 @@ xcodegen generate --spec project.yml
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project BetweenUs.xcodeproj -scheme BetweenUs -destination 'generic/platform=iOS Simulator' build
 ```
 
-也可直接用 Xcode 打开 `ios/BetweenUs.xcodeproj` 运行模拟器。
+## 当前已实现能力
 
-## 3) 测试
+1. Apple 登录、手机号登录、登录后绑定手机号。
+2. 录音上传、异步复盘、历史复盘、报告详情。
+3. Apple IAP 次数包购买、服务端验签、重复交易幂等、退款/撤销回收。
+4. 账号删除，删除时同步清空本地会话和后端数据。
+5. Keychain 持久化登录态，Release 环境强制 HTTPS。
+6. `/healthz` 和 `/readyz` 就绪检查，以及 PostgreSQL 备份脚本。
 
-后端：
+## 已验证
+
+后端测试：
 
 ```bash
 cd backend
 uv run pytest
 ```
 
-iOS：
+iOS 测试：
 
 ```bash
 cd ios
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project BetweenUs.xcodeproj -scheme BetweenUs -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
-
-## 当前已实现能力
-
-1. iOS 端：首次启动手机号验证码登录，录音后自动上传音频，触发异步复盘，实时展示任务进度与结果，并可从后端同步历史记录。
-2. 后端：短信验证码登录、用户资料、会话创建/音频上传/异步复盘（ASR+LLM）/进度查询/会话详情/报告查询/计费权益查询与加购幂等。
-3. 安全基线：JWT 鉴权、输入校验、用户数据隔离、无硬编码密钥。
-4. 数据层：会话/报告/进度/余额已落数据库持久化（非内存）。
-5. 测试：后端单元+集成测试通过，iOS 单元测试通过。

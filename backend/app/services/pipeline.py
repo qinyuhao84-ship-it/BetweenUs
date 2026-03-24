@@ -40,6 +40,7 @@ class ProcessingPipeline:
                     ActionTask(task_id=f"t-{idx + 1}", content=task.content)
                     for idx, task in enumerate(report_draft.action_tasks)
                 ],
+                detailed_report=report_draft.detailed_report,
             )
             session_service.complete(session_id=session_id, transcript=transcript, report=report)
             progress_service.complete(session_id)

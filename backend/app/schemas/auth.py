@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 class AppleLoginRequest(BaseModel):
     apple_identity_token: str = Field(min_length=8)
+    authorization_code: str = Field(min_length=8)
+    full_name: str = Field(default="", max_length=60)
 
 
 class PhoneBindRequest(BaseModel):
@@ -19,6 +21,7 @@ class AuthResponse(BaseModel):
     expires_in_minutes: int
     phone: str | None = None
     phone_masked: str | None = None
+    has_bound_phone: bool = False
 
 
 class SendSMSCodeRequest(BaseModel):
@@ -29,7 +32,6 @@ class SendSMSCodeResponse(BaseModel):
     sent: bool
     expires_in_seconds: int
     retry_after_seconds: int
-    dev_code: str | None = None
 
 
 class PhoneLoginRequest(BaseModel):
@@ -39,8 +41,9 @@ class PhoneLoginRequest(BaseModel):
 
 class UserProfileResponse(BaseModel):
     user_id: str
-    phone: str
-    phone_masked: str
+    phone: str | None
+    phone_masked: str | None
+    has_bound_phone: bool
     nickname: str
     created_at: datetime
     last_login_at: datetime
@@ -48,3 +51,8 @@ class UserProfileResponse(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     nickname: str = Field(min_length=1, max_length=30)
+
+
+class DeleteAccountResponse(BaseModel):
+    success: bool
+    apple_revoked: bool

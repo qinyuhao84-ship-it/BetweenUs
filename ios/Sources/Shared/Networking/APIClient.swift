@@ -32,8 +32,12 @@ struct APIClient {
         return resolved
     }
 
-    func appleLogin(identityToken: String) async throws -> AuthTokenResponse {
-        let body = AppleLoginRequest(apple_identity_token: identityToken)
+    func appleLogin(identityToken: String, authorizationCode: String, fullName: String) async throws -> AuthTokenResponse {
+        let body = AppleLoginRequest(
+            apple_identity_token: identityToken,
+            authorization_code: authorizationCode,
+            full_name: fullName
+        )
         return try await request(
             path: "/v1/auth/apple-login",
             method: "POST",
@@ -88,6 +92,29 @@ struct APIClient {
             accessToken: accessToken,
             body: body,
             response: UserProfileResponse.self
+        )
+    }
+
+    func bindPhone(accessToken: String, phone: String, code: String) async throws -> UserProfileResponse {
+        let body = PhoneBindRequest(phone: phone, code: code)
+        return try await request(
+            path: "/v1/auth/phone-bind",
+            method: "POST",
+            userID: "",
+            accessToken: accessToken,
+            body: body,
+            response: UserProfileResponse.self
+        )
+    }
+
+    func deleteCurrentUser(accessToken: String) async throws -> DeleteAccountResponse {
+        try await request(
+            path: "/v1/auth/me",
+            method: "DELETE",
+            userID: "",
+            accessToken: accessToken,
+            body: EmptyRequest(),
+            response: DeleteAccountResponse.self
         )
     }
 
@@ -219,17 +246,6 @@ struct APIClient {
         )
     }
 
-    func fetchRuntimeStatus() async throws -> RuntimeStatusResponse {
-        try await request(
-            path: "/v1/system/runtime-status",
-            method: "GET",
-            userID: "",
-            accessToken: nil,
-            body: Optional<Data>.none,
-            response: RuntimeStatusResponse.self
-        )
-    }
-
     func fetchEntitlements(accessToken: String) async throws -> EntitlementResponse {
         try await request(
             path: "/v1/billing/entitlements",
@@ -252,35 +268,15 @@ struct APIClient {
         )
     }
 
-    func createPaymentOrder(
-        packageID: String,
-        channel: String,
-        accessToken: String
-    ) async throws -> CreatePaymentOrderResponse {
-        let body = CreatePaymentOrderRequest(package_id: packageID, channel: channel)
+    func verifyIAP(accessToken: String, signedTransactionInfo: String) async throws -> VerifyIAPResponse {
+        let body = VerifyIAPRequest(signed_transaction_info: signedTransactionInfo)
         return try await request(
-            path: "/v1/billing/payments/create",
+            path: "/v1/billing/iap/verify",
             method: "POST",
             userID: "",
             accessToken: accessToken,
             body: body,
-            response: CreatePaymentOrderResponse.self
-        )
-    }
-
-    func confirmPaymentOrder(
-        orderNo: String,
-        providerOrderID: String,
-        accessToken: String
-    ) async throws -> ConfirmPaymentResponse {
-        let body = ConfirmPaymentRequest(order_no: orderNo, provider_order_id: providerOrderID)
-        return try await request(
-            path: "/v1/billing/payments/confirm",
-            method: "POST",
-            userID: "",
-            accessToken: accessToken,
-            body: body,
-            response: ConfirmPaymentResponse.self
+            response: VerifyIAPResponse.self
         )
     }
 
@@ -384,3 +380,5 @@ private extension Data {
         }
     }
 }
+
+private struct EmptyRequest: Codable {}

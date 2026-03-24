@@ -1,14 +1,11 @@
+import StoreKit
 import SwiftUI
 
 struct RechargeView: View {
     @EnvironmentObject private var appState: AppState
-    @Environment(\.openURL) private var openURL
 
     @State private var selectedPackageID: String = ""
-    @State private var selectedChannel: String = "alipay"
-    @State private var pendingOrder: CreatePaymentOrderResponse?
-    @State private var confirmLoading: Bool = false
-    @State private var successBanner: String?
+    @State private var purchasing: Bool = false
 
     var body: some View {
         ZStack {
@@ -18,14 +15,16 @@ struct RechargeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     quotaCard
                     packageCard
-                    channelCard
                     actionCard
 
-                    if let pendingOrder {
-                        pendingOrderCard(order: pendingOrder)
+                    if let message = appState.iapStore.statusMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(BetweenUsTheme.textSecondary)
+                            .betweenUsCardStyle()
                     }
 
-                    if let error = appState.billingErrorMessage {
+                    if let error = appState.iapStore.errorMessage ?? appState.billingErrorMessage {
                         Text(error)
                             .font(.footnote)
                             .foregroundStyle(.red)
@@ -43,21 +42,14 @@ struct RechargeView: View {
             await appState.refreshEntitlements()
             await appState.refreshTopupPackages()
             ensureSelection()
+            await appState.iapStore.loadProducts(packageIDs: appState.topupPackages.map(\.package_id))
+            await appState.iapStore.syncUnfinishedTransactions(appState: appState)
         }
-        .onChange(of: appState.topupPackages.count) { _, _ in
+        .onChange(of: appState.topupPackages.map(\.package_id)) { _, newValue in
             ensureSelection()
-        }
-        .alert("充值成功", isPresented: Binding(
-            get: { successBanner != nil },
-            set: { newValue in
-                if !newValue {
-                    successBanner = nil
-                }
+            Task {
+                await appState.iapStore.loadProducts(packageIDs: newValue)
             }
-        )) {
-            Button("知道了", role: .cancel) {}
-        } message: {
-            Text(successBanner ?? "")
         }
     }
 
@@ -85,16 +77,16 @@ struct RechargeView: View {
 
     private var packageCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("选择套餐")
+            Text("选择次数包")
                 .font(.headline)
                 .foregroundStyle(BetweenUsTheme.textPrimary)
 
             if appState.topupPackages.isEmpty {
                 HStack(spacing: 10) {
-                    if appState.billingLoading {
+                    if appState.billingLoading || appState.iapStore.loading {
                         ProgressView()
                     }
-                    Text(appState.billingLoading ? "正在拉取套餐..." : "当前没有可购买套餐")
+                    Text(appState.billingLoading || appState.iapStore.loading ? "正在加载商品..." : "当前没有可购买的次数包")
                         .font(.footnote)
                         .foregroundStyle(BetweenUsTheme.textSecondary)
                 }
@@ -108,12 +100,12 @@ struct RechargeView: View {
                                 Text(item.title)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(BetweenUsTheme.textPrimary)
-                                Text("\(item.units) 单位")
+                                Text("\(item.units) 次复盘额度")
                                     .font(.caption)
                                     .foregroundStyle(BetweenUsTheme.textSecondary)
                             }
                             Spacer()
-                            Text(item.price_label)
+                            Text(displayPrice(for: item.package_id))
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(BetweenUsTheme.brandBlue)
                         }
@@ -137,103 +129,43 @@ struct RechargeView: View {
         .betweenUsCardStyle()
     }
 
-    private var channelCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("支付方式")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
-            HStack(spacing: 10) {
-                channelButton(id: "alipay", title: "支付宝")
-                channelButton(id: "wechat", title: "微信支付")
-            }
-        }
-        .betweenUsCardStyle()
-    }
-
     private var actionCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("创建订单")
+            Text("使用 Apple App 内购买")
                 .font(.headline)
                 .foregroundStyle(BetweenUsTheme.textPrimary)
-            Text("下单后会拉起对应支付应用，支付完成再回到这里确认到账。")
+            Text("购买完成后，次数会直接同步到当前账号；如果网络抖动，应用会在下次打开时继续补同步。")
                 .font(.footnote)
                 .foregroundStyle(BetweenUsTheme.textSecondary)
 
             Button {
+                purchasing = true
                 Task {
+                    defer { purchasing = false }
                     guard !selectedPackageID.isEmpty else { return }
-                    if let order = await appState.createTopupOrder(packageID: selectedPackageID, channel: selectedChannel) {
-                        pendingOrder = order
-                        if let url = URL(string: order.payment_payload), !order.payment_payload.hasPrefix("mock://") {
-                            openURL(url)
-                        }
-                    }
-                }
-            } label: {
-                if appState.billingLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("去支付")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(BetweenUsPrimaryButtonStyle())
-            .disabled(selectedPackageID.isEmpty || appState.billingLoading)
-        }
-        .betweenUsCardStyle()
-    }
-
-    private func pendingOrderCard(order: CreatePaymentOrderResponse) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("待确认订单")
-                .font(.headline)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-
-            detailRow("订单号", order.order_no)
-            detailRow("支付渠道", order.channel == "wechat" ? "微信支付" : "支付宝")
-            detailRow("金额", "¥\(String(format: "%.2f", Double(order.amount_cny) / 100.0))")
-            detailRow("额度", "\(order.units) 单位")
-            detailRow("失效时间", order.expires_at)
-
-            if order.payment_payload.hasPrefix("mock://") {
-                Text("当前为开发模式，支付将走模拟确认。")
-                    .font(.footnote)
-                    .foregroundStyle(BetweenUsTheme.textSecondary)
-            }
-
-            Text(order.payment_payload)
-                .font(.caption.monospaced())
-                .foregroundStyle(BetweenUsTheme.textTertiary)
-                .textSelection(.enabled)
-                .padding(.top, 2)
-
-            Button {
-                confirmLoading = true
-                Task {
-                    defer { confirmLoading = false }
-                    let providerID = order.payment_payload.hasPrefix("mock://")
-                        ? "mock_\(Int(Date().timeIntervalSince1970))"
-                        : ""
-                    let ok = await appState.confirmTopupOrder(orderNo: order.order_no, providerOrderID: providerID)
-                    if ok {
-                        successBanner = "充值已到账，余额额度已更新。"
-                        pendingOrder = nil
+                    if await appState.iapStore.purchase(packageID: selectedPackageID, appState: appState) {
                         await appState.refreshEntitlements()
                     }
                 }
             } label: {
-                if confirmLoading {
+                if purchasing {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else {
-                    Text(order.payment_payload.hasPrefix("mock://") ? "模拟支付成功" : "我已完成支付，确认到账")
+                    Text("购买并同步")
                         .frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(BetweenUsPrimaryButtonStyle())
-            .disabled(confirmLoading)
+            .disabled(selectedPackageID.isEmpty || purchasing)
+
+            Button("检查未完成购买") {
+                Task {
+                    await appState.iapStore.syncUnfinishedTransactions(appState: appState)
+                    await appState.refreshEntitlements()
+                }
+            }
+            .buttonStyle(BetweenUsPrimaryButtonStyle())
         }
         .betweenUsCardStyle()
     }
@@ -255,37 +187,11 @@ struct RechargeView: View {
         )
     }
 
-    private func channelButton(id: String, title: String) -> some View {
-        Button {
-            selectedChannel = id
-        } label: {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(selectedChannel == id ? .white : BetweenUsTheme.textPrimary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(
-                            selectedChannel == id
-                                ? AnyShapeStyle(BetweenUsTheme.ctaGradient)
-                                : AnyShapeStyle(Color.white.opacity(0.78))
-                        )
-                )
+    private func displayPrice(for packageID: String) -> String {
+        if let product = appState.iapStore.productsByID[packageID] {
+            return product.displayPrice
         }
-        .buttonStyle(.plain)
-    }
-
-    private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(BetweenUsTheme.textSecondary)
-            Spacer()
-            Text(value)
-                .foregroundStyle(BetweenUsTheme.textPrimary)
-                .textSelection(.enabled)
-        }
-        .font(.footnote)
+        return "待加载"
     }
 
     private func ensureSelection() {

@@ -1,0 +1,69 @@
+{
+  "identifier" : "B7E941C3-06A1-4B7F-9C9F-2F7A42E4A001",
+  "nonConsumables" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "6.00",
+      "familyShareable" : false,
+      "internalID" : "FE1A4C3D-3C61-4CFB-BF94-C4A120010001",
+      "localizations" : [
+        {
+          "description" : "购买 1 次冲突复盘次数",
+          "displayName" : "单次包",
+          "locale" : "zh_Hans"
+        }
+      ],
+      "productID" : "betweenus.payg.1",
+      "referenceName" : "single-pack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "12.00",
+      "familyShareable" : false,
+      "internalID" : "FE1A4C3D-3C61-4CFB-BF94-C4A120010002",
+      "localizations" : [
+        {
+          "description" : "购买 2 次冲突复盘次数",
+          "displayName" : "双次包",
+          "locale" : "zh_Hans"
+        }
+      ],
+      "productID" : "betweenus.payg.2",
+      "referenceName" : "double-pack",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "18.00",
+      "familyShareable" : false,
+      "internalID" : "FE1A4C3D-3C61-4CFB-BF94-C4A120010003",
+      "localizations" : [
+        {
+          "description" : "购买 3 次冲突复盘次数",
+          "displayName" : "三次包",
+          "locale" : "zh_Hans"
+        }
+      ],
+      "productID" : "betweenus.payg.3",
+      "referenceName" : "triple-pack",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "FE1A4C3D-3C61-4CFB-BF94-C4A120010010",
+    "_developerTeamID" : "",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 764000000,
+    "_locale" : "zh_Hans_CN",
+    "_storefront" : "CHN"
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

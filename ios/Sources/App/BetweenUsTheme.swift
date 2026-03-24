@@ -5,12 +5,12 @@ enum BetweenUsTheme {
     static let pageMid = Color(hex: 0xEEF8FF)
     static let pageBottom = Color(hex: 0xF3F8FF)
 
-    static let brandBlue = Color(hex: 0x3B82F6)
-    static let brandBlueSoft = Color(hex: 0x93C5FD)
-    static let brandPink = Color(hex: 0x2DD4BF)
-    static let brandPinkSoft = Color(hex: 0xCCFBF1)
-    static let brandCta = Color(hex: 0x34D399)
-    static let brandTeal = Color(hex: 0x0EA5E9)
+    static let brandBlue = Color(hex: 0x4F8CFF)
+    static let brandBlueSoft = Color(hex: 0xDBEBFF)
+    static let brandPink = Color(hex: 0x56D4C4)
+    static let brandPinkSoft = Color(hex: 0xE9FBF8)
+    static let brandCta = Color(hex: 0x74D9C6)
+    static let brandTeal = Color(hex: 0x67C6F8)
 
     static let textPrimary = Color(hex: 0x0F172A)
     static let textSecondary = Color(hex: 0x334155)
@@ -27,15 +27,15 @@ enum BetweenUsTheme {
     )
 
     static let ctaGradient = LinearGradient(
-        colors: [brandCta, brandBlue],
-        startPoint: .leading,
-        endPoint: .trailing
+        colors: [Color(hex: 0xFCFEFF), Color(hex: 0xF0F8FF), Color(hex: 0xEEFFF8)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
     )
 
     static let dangerGradient = LinearGradient(
-        colors: [Color(hex: 0xFF5D8C), Color(hex: 0xFF4065)],
-        startPoint: .leading,
-        endPoint: .trailing
+        colors: [Color(hex: 0xFFF9FA), Color(hex: 0xFFF7F8), Color(hex: 0xFFFDFC)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
     )
 }
 
@@ -93,27 +93,57 @@ struct BetweenUsPrimaryButtonStyle: ButtonStyle {
     var isDanger: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
+        let baseShape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let borderColor = isDanger ? Color(hex: 0xFAD1D8).opacity(0.9) : BetweenUsTheme.brandBlue.opacity(0.2)
+        let textColor = isDanger ? Color(hex: 0xB8325F) : Color(hex: 0x24506A)
+        let highlightColor = Color.white.opacity(configuration.isPressed ? 0.2 : 0.5)
+        let glowColor = isDanger ? Color(hex: 0xFDB9C8).opacity(0.14) : BetweenUsTheme.brandBlue.opacity(0.18)
+
         configuration.label
             .font(.headline.weight(.semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(textColor)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isDanger ? BetweenUsTheme.dangerGradient : BetweenUsTheme.ctaGradient)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
+                ZStack {
+                    baseShape
+                        .fill(isDanger ? BetweenUsTheme.dangerGradient : BetweenUsTheme.ctaGradient)
+                    baseShape
+                        .fill(
+                            RadialGradient(
+                                colors: [Color.white.opacity(configuration.isPressed ? 0.06 : 0.18), Color.white.opacity(0)],
+                                center: .top,
+                                startRadius: 4,
+                                endRadius: 120
+                            )
+                        )
+                    baseShape
+                        .fill(
+                            LinearGradient(
+                                colors: [highlightColor, Color.white.opacity(0)],
+                                startPoint: .top,
+                                endPoint: .center
+                            )
+                        )
+                }
+                .overlay(
+                    ZStack {
+                        baseShape
+                            .stroke(borderColor, lineWidth: 1)
+                        baseShape
+                            .stroke(Color.white.opacity(0.58), lineWidth: 0.8)
+                            .blur(radius: 0.3)
+                    }
+                )
             )
             .shadow(
-                color: (isDanger ? Color.red.opacity(0.18) : BetweenUsTheme.brandBlue.opacity(0.22)),
-                radius: configuration.isPressed ? 8 : 16,
+                color: glowColor,
+                radius: configuration.isPressed ? 4 : 14,
                 x: 0,
-                y: configuration.isPressed ? 4 : 10
+                y: configuration.isPressed ? 2 : 8
             )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
@@ -128,12 +158,16 @@ struct BetweenUsSmoothProgressBar: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.black.opacity(0.06))
+                    .fill(Color.white.opacity(0.58))
+                    .overlay(
+                        Capsule()
+                            .stroke(BetweenUsTheme.brandBlue.opacity(0.12), lineWidth: 1)
+                    )
 
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [BetweenUsTheme.brandCta, BetweenUsTheme.brandBlue],
+                            colors: [BetweenUsTheme.brandCta, BetweenUsTheme.brandTeal, BetweenUsTheme.brandBlue],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -152,7 +186,7 @@ struct BetweenUsSmoothProgressBar: View {
                             .offset(x: max(width - max(width * 0.35, 28), 0) * glowPosition)
                             .opacity(width > 18 ? 1 : 0)
                     }
-                    .shadow(color: BetweenUsTheme.brandBlue.opacity(0.2), radius: 6, x: 0, y: 2)
+                    .shadow(color: BetweenUsTheme.brandBlue.opacity(0.22), radius: 7, x: 0, y: 2)
                     .animation(.interactiveSpring(response: 0.45, dampingFraction: 0.88), value: width)
             }
             .clipShape(Capsule())
